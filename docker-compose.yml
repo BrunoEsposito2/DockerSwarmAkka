@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  worker1:
+    image: docker:dind
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    deploy:
+      mode: replicated
+      replicas: 1
+    networks:
+      - swarm_network
+
+  worker2:
+    image: docker:dind
+    build:
+      context: ./node2
+      dockerfile: Dockerfile
+    deploy:
+      mode: replicated
+      replicas: 1
+    networks:
+      - swarm_network
+
+networks:
+  swarm_network:
+    external: true
+    name: swarm_network

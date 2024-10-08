@@ -17,8 +17,8 @@ RUN wget https://services.gradle.org/distributions/gradle-7.6-bin.zip && \
     rm gradle-7.6-bin.zip && \
     echo "export PATH=$PATH:/usr/local/gradle/bin" >> /etc/profile.d/gradle.sh
 
-WORKDIR /node1
+WORKDIR /node2
 
-COPY . /node1
+COPY . /node2
 
 CMD ["/usr/local/gradle/bin/gradle", "runScalaMain"]

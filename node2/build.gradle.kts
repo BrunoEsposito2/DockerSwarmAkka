@@ -19,7 +19,7 @@ repositories {
 }
 
 dependencies {
-    implementation(project(":common"))
+    //implementation(project(":common"))
 
     // https://mvnrepository.com/artifact/org.scala-lang/scala3-library
     implementation("org.scala-lang:scala3-library_3:3.3.3")
@@ -74,4 +74,14 @@ java {
 application {
     // Define the main class for the application.
     mainClass = "org.example.App"
+}
+
+tasks.register("runScalaMain") {
+    dependsOn("compileScala")
+    doLast {
+        javaexec {
+            mainClass.set(application.mainClass.get())
+            classpath = sourceSets.main.get().runtimeClasspath
+        }
+    }
 }

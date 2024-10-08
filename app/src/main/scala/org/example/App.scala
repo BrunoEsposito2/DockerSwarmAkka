@@ -51,7 +51,7 @@ object App:
     var settings = new HashMap[String, Object]
 
     settings += ("akka.remote.artery.canonical.hostname" -> "127.0.0.1")
-    settings += ("akka.remote.artery.canonical.hostname" -> "2552")
+    settings += ("akka.remote.artery.canonical.port" -> "2552")
     settings += ("akka.actor.allow-java-serialization" -> "on")
     settings += ("akka.cluster.seed-nodes" ->
       List("akka://akka-cluster-system@127.0.0.1:2551", "akka://akka-cluster-system@127.0.0.1:2552").asJava)

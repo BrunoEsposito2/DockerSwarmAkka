@@ -44,6 +44,19 @@ object App:
   case object FindPing extends Message
   case object Start extends Message
   private case class ListingResponse(listing: Receptionist.Listing) extends Message
+  private def initBasicConfig =
+    var settings = new HashMap[String, Object]
+
+    settings += ("akka.remote.artery.canonical.hostname" -> "127.0.0.1")
+    settings += ("akka.remote.artery.canonical.port" -> "2551")
+    settings += ("akka.actor.allow-java-serialization" -> "on")
+    settings += ("akka.cluster.seed-nodes" ->
+      List("akka://akka-cluster-system@127.0.0.1:2551", "akka://akka-cluster-system@127.0.0.1:2552").asJava)
+    settings += ("akka.cluster.downing-provider-class" -> "akka.cluster.sbr.SplitBrainResolverProvider")
+
+    settings += ("akka.actor.provider" -> "cluster")
+
+    ConfigFactory.parseMap(settings.asJava)
 
   def main(args: Array[String]): Unit =
     var pingRef: ActorRef[Message] = null
@@ -66,7 +79,7 @@ object App:
           pingRef ! Ping(WorkerOne.pongSelfRef.get)
           Behaviors.same
       }
-    }, "akka-cluster-system", ConfigFactory.load())
+    }, "akka-cluster-system", ConfigFactory.load(initBasicConfig))
 
     val cluster = Cluster(system)
 
