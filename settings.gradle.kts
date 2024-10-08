@@ -35,6 +35,8 @@ open class DockerSwarmSetupTask: DefaultTask() {
         println("manager ip: " + managerIp)
         val joinProcess = ProcessBuilder("docker", "swarm", "join", "--token", joinToken, managerIp).start()
         joinProcess.waitFor()
+        val joinProcess2 = ProcessBuilder("docker", "swarm", "join", "--token", joinToken, managerIp).start()
+        joinProcess2.waitFor()
 
         println("Creazione rete overlay")
         val networkProcess = ProcessBuilder("docker", "network", "create", "--driver", "overlay", "swarm_network").start()
