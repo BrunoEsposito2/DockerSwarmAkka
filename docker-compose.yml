@@ -3,6 +3,8 @@ version: "3.9"
 services:
   worker1:
     image: docker:dind
+    container_name: worker1
+    privileged: true
     build:
       context: ./app
       dockerfile: Dockerfile
@@ -14,6 +16,8 @@ services:
 
   worker2:
     image: docker:dind
+    container_name: worker2
+    privileged: true
     build:
       context: ./node2
       dockerfile: Dockerfile

@@ -3,6 +3,7 @@
  */
 package org.example
 
+import scala.jdk.CollectionConverters._
 import akka.actor.typed.receptionist.Receptionist.Command
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
@@ -10,6 +11,8 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.cluster.typed.Cluster
 import com.typesafe.config.ConfigFactory
 import org.example.WorkerOne.pongSelfRef
+
+import scala.collection.immutable.HashMap
 
 trait Message
 final case class Pong(replyTo: ActorRef[Ping]) extends Message
