@@ -2,16 +2,6 @@ services:
   worker1:
     image: docker:dind
     privileged: true
-    command: >
-      sh -c "
-        dockerd-entrypoint.sh &
-        until docker info; do
-          echo 'Waiting for Docker to start...'
-          sleep 1
-        done
-        docker swarm join --token ${JOIN_TOKEN} ${MANAGER_IP}:2377
-        tail -f /dev/null
-        "
     container_name: worker1
     environment:
       - DOCKER_TLS_CERTDIR=/certs
@@ -25,16 +15,6 @@ services:
   worker2:
     image: docker:dind
     privileged: true
-    command: >
-      sh -c "
-        dockerd-entrypoint.sh &
-        until docker info; do
-          echo 'Waiting for Docker to start...'
-          sleep 1
-        done
-        docker swarm join --token ${JOIN_TOKEN} ${MANAGER_IP}:2377
-        tail -f /dev/null
-      "
     container_name: worker2
     environment:
       - DOCKER_TLS_CERTDIR=/certs
