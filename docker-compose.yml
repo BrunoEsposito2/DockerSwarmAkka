@@ -1,33 +1,57 @@
-version: "3.9"
-
 services:
   worker1:
     image: docker:dind
-    container_name: worker1
     privileged: true
-    build:
-      context: ./app
-      dockerfile: Dockerfile
-    deploy:
-      mode: replicated
-      replicas: 1
+    command: >
+      sh -c "
+        dockerd-entrypoint.sh &
+        until docker info; do
+          echo 'Waiting for Docker to start...'
+          sleep 1
+        done
+        docker swarm join --token ${JOIN_TOKEN} ${MANAGER_IP}:2377
+        tail -f /dev/null
+        "
+    container_name: worker1
+    environment:
+      - DOCKER_TLS_CERTDIR=/certs
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - worker1-certs:/certs
+      - worker1-data:/var/lib/docker
     networks:
-      - swarm_network
+      - swarm-network
 
   worker2:
     image: docker:dind
-    container_name: worker2
     privileged: true
-    build:
-      context: ./node2
-      dockerfile: Dockerfile
-    deploy:
-      mode: replicated
-      replicas: 1
+    command: >
+      sh -c "
+        dockerd-entrypoint.sh &
+        until docker info; do
+          echo 'Waiting for Docker to start...'
+          sleep 1
+        done
+        docker swarm join --token ${JOIN_TOKEN} ${MANAGER_IP}:2377
+        tail -f /dev/null
+      "
+    container_name: worker2
+    environment:
+      - DOCKER_TLS_CERTDIR=/certs
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - worker2-certs:/certs
+      - worker2-data:/var/lib/docker
     networks:
-      - swarm_network
+      - swarm-network
+
+volumes:
+  worker1-certs:
+  worker1-data:
+  worker2-certs:
+  worker2-data:
 
 networks:
-  swarm_network:
-    external: true
-    name: swarm_network
+  swarm-network:
+    driver: overlay
+    attachable: true
