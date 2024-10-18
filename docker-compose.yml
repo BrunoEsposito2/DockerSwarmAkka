@@ -1,8 +1,12 @@
 services:
   worker1:
-    image: docker:dind
+    build:
+      context: ./node1/
+      dockerfile: Dockerfile
     privileged: true
     container_name: worker1
+    ports:
+      - "2555:2555"
     environment:
       - DOCKER_TLS_CERTDIR=/certs
       - DOCKER_HOST=unix:///var/run/docker.sock
@@ -13,9 +17,13 @@ services:
       - swarm-network
 
   worker2:
-    image: docker:dind
+    build:
+      context: ./node2/
+      dockerfile: Dockerfile
     privileged: true
     container_name: worker2
+    ports:
+      - "2551:2551"
     environment:
       - DOCKER_TLS_CERTDIR=/certs
       - DOCKER_HOST=unix:///var/run/docker.sock

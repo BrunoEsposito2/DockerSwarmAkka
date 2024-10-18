@@ -50,11 +50,12 @@ object App:
   private def initBasicConfig =
     var settings = new HashMap[String, Object]
 
-    settings += ("akka.remote.artery.canonical.hostname" -> "127.0.0.1")
+    settings += ("akka.remote.artery.canonical.hostname" -> "worker2")
     settings += ("akka.remote.artery.canonical.port" -> "2551")
     settings += ("akka.actor.allow-java-serialization" -> "on")
+    settings += ("akka.remote.artery.transport" -> "tcp")
     settings += ("akka.cluster.seed-nodes" ->
-      List("akka://akka-cluster-system@127.0.0.1:2551", "akka://akka-cluster-system@127.0.0.1:2552").asJava)
+      List("akka://akka-cluster-system@worker1:2555", "akka://akka-cluster-system@worker2:2551").asJava)
     settings += ("akka.cluster.downing-provider-class" -> "akka.cluster.sbr.SplitBrainResolverProvider")
 
     settings += ("akka.actor.provider" -> "cluster")

@@ -12,10 +12,10 @@ RUN apk add --no-cache bash \
        && apk del .build-deps
 
 # Impostare la directory di lavoro
-WORKDIR /node2
+WORKDIR /node1
 
 # Copiare i file
-COPY . /node2
+COPY . /node1
 
 # Comando da eseguire
 # CMD ["gradle", "runScalaMain"]
