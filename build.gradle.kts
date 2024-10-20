@@ -58,34 +58,9 @@ tasks.register("setupAndDeploy") {
         }
 
         println("Stack deployed successfully. Worker nodes should now be joining the swarm.")
+    }
 
-        // Attendi che i container siano avviati
-        Thread.sleep(15000)
-
-        // Ottieni i nomi dei container
-        val containerNames = ByteArrayOutputStream()
-        exec {
-            commandLine("docker-compose", "ps", "--format", "{{.Name}}")
-            standardOutput = containerNames
-        }
-
-        // Estrai i nomi dall'output
-        val namesList = containerNames.toString().trim().split("\n")
-
-        var n = 0
-        // Unisci ogni container allo swarm
-        for (name in namesList) {
-            exec {
-                commandLine("docker", "exec", name, "docker", "swarm", "join", "--token", joinToken, managerIp + ":2377")
-            }
-            Thread.sleep(2000)
-            exec {
-                commandLine("docker", "exec", "-d", name, "gradle", "runScalaMain")
-            }
-            Thread.sleep(2000)
-            n++
-        }
-
+    doLast {
         exec {
             commandLine("docker", "stack", "deploy", "-c", "portainer.yml", "portainer")
         }

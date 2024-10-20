@@ -8,6 +8,8 @@ services:
     ports:
       - "2555:2555"
     environment:
+      - JOIN_TOKEN=${JOIN_TOKEN}
+      - MANAGER_IP=${MANAGER_IP}
       - DOCKER_TLS_CERTDIR=/certs
       - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
@@ -25,6 +27,8 @@ services:
     ports:
       - "2551:2551"
     environment:
+      - JOIN_TOKEN=${JOIN_TOKEN}
+      - MANAGER_IP=${MANAGER_IP}
       - DOCKER_TLS_CERTDIR=/certs
       - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:

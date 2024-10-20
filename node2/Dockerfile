@@ -17,5 +17,4 @@ WORKDIR /node2
 # Copiare i file
 COPY . /node2
 
-# Comando da eseguire
-# CMD ["gradle", "runScalaMain"]
+CMD ["/bin/sh", "/node2/entrypoint.sh"]
