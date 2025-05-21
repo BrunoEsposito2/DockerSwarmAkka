@@ -58,11 +58,11 @@ jobs:
             echo "  - Breaking change detected"
             NEED_MAJOR=true
           # Check for feature commits
-          elif [[ $commit =~ ^feat:|^feat\([^)]+\): ]]; then
+          elif [[ $commit == feat:* ]]; then
             echo "  - Feature detected"
             NEED_MINOR=true
           # Check for fix commits
-          elif [[ $commit =~ ^fix:|^fix\([^)]+\): ]]; then
+          elif [[ $commit == fix:* ]]; then
             echo "  - Fix detected"
             NEED_PATCH=true
           # Other types of commits will increment patch
