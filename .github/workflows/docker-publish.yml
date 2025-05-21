@@ -42,7 +42,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: ./node1/
-        file: Dockerfile
+        file: ./Dockerfile
         push: true
         tags: |
           brunoesposito2/akka-node1:latest
@@ -55,7 +55,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: ./node2/
-        file: Dockerfile
+        file: ./Dockerfile
         push: true
         tags: |
           brunoesposito2/akka-node2:latest
