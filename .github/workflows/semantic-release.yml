@@ -54,7 +54,7 @@ jobs:
           echo "Analyzing: $commit"
           
           # Check for breaking changes (with ! or BREAKING CHANGE)
-          if [[ $commit =~ ^(feat|fix|refactor|perf)\!: || $commit =~ ^[^:]*\!:[^:]*$ || $commit =~ BREAKING\ CHANGE ]]; then
+          if [[ $commit == feat!:* || $commit == fix!:* || $commit == refactor!:* || $commit == perf!:* || $commit == *"BREAKING CHANGE"* ]]; then
             echo "  - Breaking change detected"
             NEED_MAJOR=true
           # Check for feature commits
