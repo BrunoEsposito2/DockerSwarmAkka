@@ -12,9 +12,9 @@ RUN apk add --no-cache bash \
        && apk del .build-deps
 
 # Impostare la directory di lavoro
-WORKDIR /node2
+WORKDIR /project
 
 # Copiare i file
-COPY . /node2
+COPY . /project
 
-CMD ["/bin/sh", "/node2/entrypoint.sh"]
+CMD ["/bin/sh", "./node2/entrypoint.sh"]
