@@ -1,0 +1,80 @@
+name: Sync Version Across Branches
+
+on:
+  workflow_run:
+    workflows: ["Semantic Release Workflow"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  sync-version:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.TEST_TOKEN }}
+        
+    - name: Set up Git
+      run: |
+        git config --local user.name "github-actions[bot]"
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        
+    - name: Get latest version tag
+      id: version
+      run: |
+        LATEST_TAG=$(git describe --tags --abbrev=0)
+        VERSION=${LATEST_TAG#v}
+        echo "latest_version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Latest version: $VERSION"
+        
+    - name: Sync version to all branches
+      run: |
+        VERSION=${{ steps.version.outputs.latest_version }}
+        BRANCHES=("test" "dev")
+        
+        for branch in "${BRANCHES[@]}"; do
+          echo "Syncing version update to $branch branch"
+          git checkout $branch
+          
+          # Check if the file exists before updating
+          if [ -f "gradle.properties" ]; then
+            # Only update the version line, or add it if not present
+            if grep -q "^version=" gradle.properties; then
+              sed -i "s/^version=.*/version=$VERSION/" gradle.properties
+            else
+              echo "" >> gradle.properties
+              echo "# Project version - will be updated automatically by the release process" >> gradle.properties
+              echo "version=$VERSION" >> gradle.properties
+            fi
+            
+            # Commit and push only if there are changes
+            if git diff --quiet gradle.properties; then
+              echo "No changes in $branch branch, skipping commit"
+            else
+              git add gradle.properties
+              git commit -m "chore: sync version to v$VERSION from main [skip ci]"
+              git push origin $branch
+            fi
+          else
+            echo "gradle.properties not found in $branch branch, creating it"
+            echo "# Gradle performance settings" >> gradle.properties
+            echo "org.gradle.jvmargs=-Xmx2048m" >> gradle.properties
+            echo "org.gradle.daemon=true" >> gradle.properties
+            echo "org.gradle.parallel=false" >> gradle.properties
+            echo "org.gradle.caching=true" >> gradle.properties
+            echo "org.gradle.configureondemand=true" >> gradle.properties
+            echo "" >> gradle.properties
+            echo "# Project version - will be updated automatically by the release process" >> gradle.properties
+            echo "version=$VERSION" >> gradle.properties
+            
+            git add gradle.properties
+            git commit -m "chore: create gradle.properties with version v$VERSION [skip ci]"
+            git push origin $branch
+          fi
+        done
