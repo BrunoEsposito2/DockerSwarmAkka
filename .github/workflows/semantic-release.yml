@@ -1,0 +1,421 @@
+name: Semantic Release Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.TEST_TOKEN }}
+        
+    - name: Set up Git
+      run: |
+        git config --local user.name "github-actions[bot]"
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        
+    - name: Determine version increment
+      id: version
+      run: |
+        # Get the latest version tag
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        echo "Latest tag: $LATEST_TAG"
+        
+        # Strip the 'v' prefix
+        LATEST_VERSION=${LATEST_TAG#v}
+        
+        # Split version into components
+        IFS='.' read -r -a VERSION_PARTS <<< "$LATEST_VERSION"
+        MAJOR=${VERSION_PARTS[0]:-0}
+        MINOR=${VERSION_PARTS[1]:-0}
+        PATCH=${VERSION_PARTS[2]:-0}
+        
+        # Get all commit messages since the last tag
+        echo "Analyzing commits since tag $LATEST_TAG"
+        COMMITS=$(git log $LATEST_TAG..HEAD --pretty=format:"%s")
+        echo "Commits found: $COMMITS"
+        
+        # Initialize flags to track if we need to increment different parts
+        NEED_MAJOR=false
+        NEED_MINOR=false
+        NEED_PATCH=false
+        
+        # Loop through each commit message
+        echo "Analyzing commit types..."
+        while IFS= read -r commit; do
+          echo "Analyzing: $commit"
+          
+          # Check for breaking changes (with ! or BREAKING CHANGE)
+          if [[ $commit =~ ^(feat|fix|refactor|perf)!: || $commit =~ ^[^:]*!:[^:]*$ || $commit =~ BREAKING\ CHANGE ]]; then
+            echo "  - Breaking change detected"
+            NEED_MAJOR=true
+          # Check for feature commits
+          elif [[ $commit =~ ^feat:|^feat\([^)]+\): ]]; then
+            echo "  - Feature detected"
+            NEED_MINOR=true
+          # Check for fix commits
+          elif [[ $commit =~ ^fix:|^fix\([^)]+\): ]]; then
+            echo "  - Fix detected"
+            NEED_PATCH=true
+          # Other types of commits will increment patch
+          elif [[ $commit =~ ^(docs|style|refactor|perf|test|chore): ]]; then
+            echo "  - Other conventional commit type detected"
+            NEED_PATCH=true
+          fi
+        done <<< "$COMMITS"
+        
+        # Determine the final version increment
+        if [ "$NEED_MAJOR" = true ]; then
+          echo "Breaking changes found - incrementing MAJOR version"
+          MAJOR=$((MAJOR + 1))
+          MINOR=0
+          PATCH=0
+        elif [ "$NEED_MINOR" = true ]; then
+          echo "Features found - incrementing MINOR version"
+          MINOR=$((MINOR + 1))
+          PATCH=0
+        elif [ "$NEED_PATCH" = true ]; then
+          echo "Fixes or other changes found - incrementing PATCH version"
+          PATCH=$((PATCH + 1))
+        else
+          echo "No conventional commits found - incrementing PATCH version as default"
+          PATCH=$((PATCH + 1))
+        fi
+        
+        NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "previous_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+        echo "New version will be: v$NEW_VERSION"
+        
+    - name: Create Release Notes
+      id: release_notes
+      run: |
+        echo "Generating release notes..."
+        
+        # Create release notes content
+        NOTES=$(cat << EOF
+        # Release v${{ steps.version.outputs.new_version }}
+        
+        Automated release generated from the changes between ${{ steps.version.outputs.previous_tag }} and HEAD.
+        
+        ## 🔄 Quick Deployment
+        
+        The simplest way to deploy this release is with our deployment script:
+        
+        \`\`\`bash
+        # Download the deployment script
+        curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.new_version }}/deploy-akka.sh -o deploy-akka.sh
+        chmod +x deploy-akka.sh
+        
+        # Run the deployment script with the version
+        ./deploy-akka.sh ${{ steps.version.outputs.new_version }}
+        \`\`\`
+        
+        ## 🐳 Docker Images
+        
+        This release is available as Docker images:
+        
+        \`\`\`
+        brunoesposito2/akka-node1:${{ steps.version.outputs.new_version }}
+        brunoesposito2/akka-node2:${{ steps.version.outputs.new_version }}
+        \`\`\`
+        
+        ## 📋 Changelog
+        
+        $(git log ${{ steps.version.outputs.previous_tag }}..HEAD --pretty=format:"- %s" | grep -E "^- (feat|fix|perf|refactor)(\([^)]*\))?(!)?:")
+        
+        ### ⚠️ Breaking Changes
+        
+        $(git log ${{ steps.version.outputs.previous_tag }}..HEAD --pretty=format:"- %s" | grep -E "^- (feat|fix|perf|refactor)(\([^)]*\))?!:")
+        
+        [Full Changelog](https://github.com/${{ github.repository }}/compare/${{ steps.version.outputs.previous_tag }}...v${{ steps.version.outputs.new_version }})
+        EOF
+        )
+        
+        # Escape multiline content for GitHub Actions
+        NOTES="${NOTES//'%'/'%25'}"
+        NOTES="${NOTES//$'\n'/'%0A'}"
+        NOTES="${NOTES//$'\r'/'%0D'}"
+        
+        echo "::set-output name=content::$NOTES"
+        
+    - name: Prepare Production Docker Compose
+      run: |
+        VERSION=${{ steps.version.outputs.new_version }}
+        mkdir -p release-artifacts
+        
+        # Create a Docker Compose file with the new version
+        cat > release-artifacts/docker-compose-${VERSION}.yml << EOF
+        version: '3.8'
+
+        services:
+          worker1:
+            build:
+              context: ./node1/
+              dockerfile: Dockerfile
+            privileged: true
+            container_name: worker1
+            ports:
+              - "2555:2555"
+            environment:
+              - JOIN_TOKEN=${JOIN_TOKEN}
+              - MANAGER_IP=${MANAGER_IP}
+              - DOCKER_TLS_CERTDIR=/certs
+              - DOCKER_HOST=unix:///var/run/docker.sock
+            volumes:
+              - worker1-certs:/certs
+              - worker1-data:/var/lib/docker
+            networks:
+              - swarm-network
+        
+          worker2:
+            build:
+              context: ./node2/
+              dockerfile: Dockerfile
+            privileged: true
+            container_name: worker2
+            ports:
+              - "2551:2551"
+            environment:
+              - JOIN_TOKEN=${JOIN_TOKEN}
+              - MANAGER_IP=${MANAGER_IP}
+              - DOCKER_TLS_CERTDIR=/certs
+              - DOCKER_HOST=unix:///var/run/docker.sock
+            volumes:
+              - worker2-certs:/certs
+              - worker2-data:/var/lib/docker
+            networks:
+              - swarm-network
+        
+        volumes:
+          worker1-certs:
+          worker1-data:
+          worker2-certs:
+          worker2-data:
+        
+        networks:
+          swarm-network:
+            driver: overlay
+            attachable: true
+        EOF
+        
+    - name: Create Deployment Script
+      run: |
+        VERSION=${{ steps.version.outputs.new_version }}
+        
+        # Create deployment script
+        cat > release-artifacts/deploy-akka.sh << 'EOF'
+#!/bin/bash
+
+# AKKA Production Deployment Script
+# Questo script automatizza il deployment di AKKA usando Docker Swarm
+
+# Colori per l'output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Configurazione 
+VERSION=$1
+ORGANIZATION="brunoesposito2"
+
+if [ -z "$VERSION" ]; then
+    echo -e "${YELLOW}Nessuna versione specificata, utilizzo 'latest'${NC}"
+    VERSION="latest"
+fi
+
+echo -e "${BLUE}=== AKKA Deployment Script - Versione $VERSION ===${NC}"
+
+# Verifica se docker è installato
+if ! command -v docker &> /dev/null; then
+    echo -e "${RED}Docker non è installato. Per favore installa Docker prima di continuare.${NC}"
+    exit 1
+fi
+
+# Verifica se lo swarm è già inizializzato
+swarm_status=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null)
+if [ "$swarm_status" != "active" ]; then
+    echo -e "${YELLOW}Inizializzazione Docker Swarm...${NC}"
+    docker swarm init || { 
+        echo -e "${RED}Errore durante l'inizializzazione dello swarm${NC}"
+        echo -e "${YELLOW}Provo con l'opzione --advertise-addr${NC}"
+        
+        # Ottieni l'indirizzo IP predefinito
+        DEFAULT_IP=$(hostname -I | awk '{print $1}')
+        docker swarm init --advertise-addr $DEFAULT_IP || {
+            echo -e "${RED}Inizializzazione swarm fallita. Verifica la tua configurazione di rete.${NC}"
+            exit 1
+        }
+    }
+else
+    echo -e "${GREEN}Docker Swarm è già attivo.${NC}"
+fi
+
+# Ottieni il token di join per i worker
+JOIN_TOKEN=$(docker swarm join-token -q worker)
+echo -e "${GREEN}Token di join dello swarm: $JOIN_TOKEN${NC}"
+
+# Ottieni l'IP del manager
+MANAGER_IP=$(docker node inspect self --format '{{.Status.Addr}}')
+echo -e "${GREEN}IP del manager: $MANAGER_IP${NC}"
+
+# Crea la rete overlay se non esiste
+if ! docker network ls | grep -q "swarm-network"; then
+    echo -e "${YELLOW}Creazione rete overlay 'swarm-network'...${NC}"
+    docker network create --driver overlay --attachable swarm-network || { 
+        echo -e "${RED}Errore durante la creazione della rete${NC}"
+        exit 1
+    }
+else
+    echo -e "${GREEN}Rete 'swarm-network' già presente.${NC}"
+fi
+
+# Scarica il docker-compose file
+echo -e "${YELLOW}Scaricamento del file docker-compose...${NC}"
+COMPOSE_URL="https://github.com/brunoesposito2/DockerSwarmAkka/releases/download/v${VERSION}/docker-compose-${VERSION}.yml"
+COMPOSE_FILE="docker-compose-${VERSION}.yml"
+
+if curl -sSL "$COMPOSE_URL" -o "$COMPOSE_FILE"; then
+    echo -e "${GREEN}File docker-compose scaricato con successo.${NC}"
+else
+    echo -e "${RED}Impossibile scaricare il file docker-compose. Verificando localmente...${NC}"
+    if [ ! -f "$COMPOSE_FILE" ]; then
+        echo -e "${RED}File '$COMPOSE_FILE' non trovato. Scarica il file manualmente dalla pagina delle release GitHub.${NC}"
+        exit 1
+    else
+        echo -e "${GREEN}Utilizzando il file docker-compose locale.${NC}"
+    fi
+fi
+
+# Export delle variabili d'ambiente necessarie
+export JOIN_TOKEN=$JOIN_TOKEN
+export MANAGER_IP=$MANAGER_IP
+
+# Verifica se ci sono stack esistenti e li rimuove
+if docker stack ls | grep -q "akka"; then
+    echo -e "${YELLOW}Trovato stack AKKA esistente. Rimozione...${NC}"
+    docker stack rm akka
+    echo -e "${YELLOW}Attesa per la rimozione completa dello stack...${NC}"
+    sleep 15  # Attendi che lo stack venga rimosso completamente
+fi
+
+# Deploy dello stack
+echo -e "${YELLOW}Deploying AKKA stack...${NC}"
+docker stack deploy -c "$COMPOSE_FILE" akka || {
+    echo -e "${RED}Errore durante il deployment dello stack.${NC}"
+    exit 1
+}
+
+# Verifica che tutti i servizi siano avviati
+echo -e "${YELLOW}Verifica dello stato dei servizi...${NC}"
+sleep 5  # Attendi che i servizi inizino
+docker stack services akka
+
+echo -e "${GREEN}=== Deployment completato! ===${NC}"
+echo -e "${BLUE}Per visualizzare i log, esegui: docker service logs -f <service_name>${NC}"
+echo -e "${BLUE}Per monitorare i servizi, esegui: docker stack services akka${NC}"
+echo -e "${BLUE}L'interfaccia web sarà disponibile su: http://localhost:3000${NC}"
+EOF
+        
+        chmod +x release-artifacts/deploy-akka.sh
+        
+    - name: Create README for Release
+      run: |
+        VERSION=${{ steps.version.outputs.new_version }}
+        
+        # Create README file
+        cat > release-artifacts/README.md << EOF
+# AKKA Release v${VERSION}
+
+## Deployment rapido
+
+Il modo più semplice per deployare questa release è utilizzare lo script di deployment:
+
+\`\`\`bash
+# Scarica lo script di deployment
+curl -sSL https://github.com/brunoesposito2/DockerSwarmAkka/releases/download/v${VERSION}/deploy-akka.sh -o deploy-akka.sh
+chmod +x deploy-akka.sh
+
+# Esegui lo script con la versione specifica
+./deploy-akka.sh ${VERSION}
+\`\`\`
+
+## Deployment manuale con Docker Swarm
+
+1. Inizializza lo swarm:
+\`\`\`bash
+docker swarm init
+\`\`\`
+
+2. Ottieni il token:
+\`\`\`bash
+export JOIN_TOKEN=$(docker swarm join-token -q worker)
+\`\`\`
+
+3. Ottieni l'IP del manager:
+\`\`\`bash
+export MANAGER_IP=$(docker node inspect self --format '{{.Status.Addr}}')
+\`\`\`
+
+4. Esegui lo stack:
+\`\`\`bash
+docker stack deploy -c docker-compose-${VERSION}.yml akka
+\`\`\`
+
+## Immagini Docker
+
+Le seguenti immagini Docker sono disponibili per questa release:
+
+\`\`\`
+brunoesposito2/akka-node1:${VERSION}
+brunoesposito2/akka-node2:${VERSION}
+\`\`\`
+EOF
+        
+    - name: Create Release and Trigger Docker Build
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.TEST_TOKEN }}
+      with:
+        tag_name: v${{ steps.version.outputs.new_version }}
+        name: Release v${{ steps.version.outputs.new_version }}
+        draft: false
+        prerelease: false
+        body: ${{ steps.release_notes.outputs.content }}
+        
+    - name: Update version in project
+      run: |
+        NEW_VERSION="${{ steps.version.outputs.new_version }}"
+        
+        # Update version in gradle.properties
+        if [ -f "gradle.properties" ]; then
+          # Replace the version line instead of appending
+          sed -i "s/^version=.*/version=$NEW_VERSION/" gradle.properties
+          
+          # Commit the version change
+          git add gradle.properties
+          git commit -m "chore: bump version to v$NEW_VERSION [skip ci]"
+          git push
+        fi
+
+    - name: Add Release Artifacts
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.version.outputs.new_version }}
+        files: |
+          release-artifacts/docker-compose-${{ steps.version.outputs.new_version }}.yml
+          release-artifacts/README.md
+          release-artifacts/deploy-akka.sh
+      env:
+        GITHUB_TOKEN: ${{ secrets.TEST_TOKEN }}
