@@ -1,0 +1,150 @@
+name: Chain Merge and Test Workflow
+
+on:
+  push:
+    branches:
+      - 'test'
+      - 'dev'
+      - 'main'
+    paths-ignore:
+          - 'settings.gradle.*'
+
+jobs:
+  chain-merge-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:4.4.6
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: admin
+          MONGO_INITDB_DATABASE: DCCV
+          MONGODB_USER: APP-USERNAME
+          MONGODB_PASSWORD: APP-PASSWORD
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd mongo
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4.1.5
+      with:
+        fetch-depth: 0
+        submodules: recursive
+        token: ${{ secrets.TEST_TOKEN }}
+
+    - name: Configure git
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+        echo "Git configuration:"
+        git config --list
+
+    - name: Fetch all branches
+      run: git fetch --all
+
+    - name: Extract commit message type
+      id: commit-type
+      run: |
+        # Get the commit message from the last commit
+        COMMIT_MSG=$(git log -1 --pretty=%B)
+        echo "Full commit message: $COMMIT_MSG"
+        
+        # Extract commit type (feat:, fix:, etc.) using regex
+        if [[ $COMMIT_MSG =~ ^(feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert): ]]; then
+          COMMIT_TYPE=${BASH_REMATCH[0]}
+          echo "Commit type detected: $COMMIT_TYPE"
+          echo "commit_type=$COMMIT_TYPE" >> $GITHUB_OUTPUT
+          echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
+        else
+          echo "No standardized commit type found, using default"
+          echo "commit_type=chore: " >> $GITHUB_OUTPUT
+          echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Determine next branch
+      id: determine-next
+      run: |
+        current_branch="${GITHUB_REF#refs/heads/}"
+        echo "Current branch: $current_branch"
+
+        declare -A branches
+        branches=( ["test"]="dev" ["dev"]="main" )
+
+        next_branch="${branches[$current_branch]}"
+        echo "Next branch: $next_branch"
+
+        echo "next_branch=$next_branch" >> $GITHUB_OUTPUT
+
+    - name: Set up JDK 17
+      if: steps.determine-next.outputs.next_branch != ''
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'corretto'
+        java-version: '17'
+
+    - name: Set execute permissions for Gradle wrapper
+      run: chmod +x ./gradlew
+
+    - name: Install mongosh
+      run: |
+        sudo apt-get install gnupg
+        wget -qO- https://www.mongodb.org/static/pgp/server-7.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-7.0.asc
+        echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+        sudo apt-get update
+        sudo apt-get install -y mongodb-mongosh
+        mongosh --version
+
+    - name: Initalize MongoDB
+      run: |
+        mongosh --host localhost:27017 -u admin -p admin --authenticationDatabase admin <<EOF
+          use DCCV;
+          db.createUser({
+            user: 'APP-USERNAME',
+            pwd: 'APP-PASSWORD',
+            roles: [
+              { role: 'readWrite', db: 'DCCV' },
+              { role: 'userAdmin', db: 'DCCV' }
+            ]
+          });
+          db.createCollection('tracking');
+          db.tracking.insertOne({});
+          db.auth('APP-USERNAME', 'APP-PASSWORD');
+        EOF
+
+    - name: Run Gradle tests
+      run: |
+        subproject="${GITHUB_REF#refs/heads/}"
+        ./gradlew ${subproject}:test
+
+    - name: Push changes to next branch if tests pass
+      if: success() && steps.determine-next.outputs.next_branch != ''
+      run: |
+        current_branch="${GITHUB_REF#refs/heads/}"
+        next_branch="${{ steps.determine-next.outputs.next_branch }}"
+        commit_type="${{ steps.commit-type.outputs.commit_type }}"
+        commit_msg="${{ steps.commit-type.outputs.commit_msg }}"
+        
+        echo "Tests passed. Merging $current_branch into $next_branch"
+        echo "Using commit type: $commit_type"
+
+        # Checkout the next branch
+        git checkout $next_branch
+        
+        # Create a merge commit with the same commit type
+        if [[ $next_branch == "main" ]]; then
+          # For merges to main, prepare for release
+          git merge --no-verify --no-ff $current_branch -m "$commit_msg (merged from $current_branch)"
+        else
+          # For other branches in the chain
+          git merge --no-verify --no-ff $current_branch -m "$commit_msg (propagated from $current_branch)"
+        fi
+
+        # Push the changes to the next branch
+        git push origin $next_branch
