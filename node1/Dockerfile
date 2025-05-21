@@ -1,20 +1,36 @@
-FROM openjdk:17-alpine
+FROM ubuntu:latest
 
-# Installare gli strumenti necessari
-RUN apk add --no-cache bash \
-    && apk add --no-cache --virtual .build-deps wget unzip \
-    && wget https://services.gradle.org/distributions/gradle-7.6-bin.zip -O /tmp/gradle.zip \
-    && unzip /tmp/gradle.zip -d /opt \
-    && rm /tmp/gradle.zip \
-    && mv /opt/gradle-7.6 /opt/gradle \
-    && ln -s /opt/gradle/bin/gradle /usr/bin/gradle \
-    && apk del .build-deps
+USER root
 
-# Installare Docker (client e daemon)
-RUN apk add --no-cache docker openrc \
-    && mkdir -p /run/openrc \
-    && touch /run/openrc/softlevel \
-    && rc-update add docker default
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg \
+    wget \
+    unzip \
+    sudo \
+    software-properties-common \
+    apt-transport-https \
+    ca-certificates
+
+# Installazione del JDK (OpenJDK 17)
+RUN apt-get install -y openjdk-17-jdk
+
+RUN apt-get install -y \
+    lsb-release && \
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y docker-ce docker-ce-cli containerd.io
+
+# Installazione di Gradle
+ARG GRADLE_VERSION=8.7
+RUN wget https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip \
+    && unzip gradle-${GRADLE_VERSION}-bin.zip -d /opt \
+    && rm gradle-${GRADLE_VERSION}-bin.zip
+
+# Imposta la variabile d'ambiente per Gradle
+ENV GRADLE_HOME=/opt/gradle-${GRADLE_VERSION}
+ENV PATH=$PATH:$GRADLE_HOME/bin
 
 # Impostare la directory di lavoro
 WORKDIR /project
