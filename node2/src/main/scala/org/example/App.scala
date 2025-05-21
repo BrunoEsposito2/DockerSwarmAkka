@@ -60,7 +60,7 @@ object App:
 
     settings += ("akka.actor.provider" -> "cluster")
 
-    ConfigFactory.parseMap(settings.asJava)
+    ConfigFactory.parseMap(settings.asJava).withFallback(ConfigFactory.load())
 
   def main(args: Array[String]): Unit =
     var pingRef: ActorRef[Message] = null
@@ -83,7 +83,7 @@ object App:
           pingRef ! Ping(WorkerOne.pongSelfRef.get)
           Behaviors.same
       }
-    }, "akka-cluster-system", ConfigFactory.load(initBasicConfig))
+    }, "akka-cluster-system", ConfigFactory.load())
 
     val cluster = Cluster(system)
 

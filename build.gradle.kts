@@ -1,10 +1,8 @@
+import org.gradle.internal.impldep.org.testng.Assert.assertTrue
 import java.io.ByteArrayOutputStream
 
-tasks.register("setupAndDeploy") {
+tasks.register("initSwarm") {
     doFirst {
-        var joinToken = ""
-        var managerIp = ""
-
         // Verifica se lo swarm è già inizializzato
         val swarmStatus = ByteArrayOutputStream()
         exec {
@@ -13,22 +11,40 @@ tasks.register("setupAndDeploy") {
         }
 
         if (swarmStatus.toString().trim() != "active") {
+            println("Initiating swarm...")
             // Inizializza lo swarm se non è attivo
             exec {
                 commandLine("docker", "swarm", "init")
             }
         } else {
+            println("Swarm is already active. Ongoing leave process...")
             exec {
                 commandLine("docker", "swarm", "leave", "--force")
             }
             Thread.sleep(4000)
+            println("Initiating swarm...")
             exec {
                 commandLine("docker", "swarm", "init")
             }
-            println("Swarm is already active.")
         }
+    }
+}
 
-        // Ottieni il token di join
+/*tasks.register("createJar") {
+    project.subprojects.forEach { p ->
+        exec {
+            commandLine("./gradlew", "${p.name}:jar")
+        }
+    }
+}*/
+
+tasks.register("deploySwarm") {
+    //dependsOn("createJar", "initSwarm")
+    doFirst {
+        var joinToken = ""
+        var managerIp = ""
+
+        // Get the join token
         val tokenOutput = ByteArrayOutputStream()
         exec {
             commandLine("docker", "swarm", "join-token", "-q", "worker")
@@ -36,7 +52,7 @@ tasks.register("setupAndDeploy") {
         }
         joinToken = tokenOutput.toString().trim()
 
-        // Ottieni l'IP del manager
+        // Get the IP of the manager
         val ipOutput = ByteArrayOutputStream()
         exec {
             commandLine("docker", "node", "inspect", "--format", "{{.Status.Addr}}", "self")
@@ -44,13 +60,13 @@ tasks.register("setupAndDeploy") {
         }
         managerIp = ipOutput.toString().trim()
 
-        // Crea la rete overlay se non esiste già
+        // Create the overlay network if it does not already exist
         exec {
             commandLine("docker", "network", "create", "--driver", "overlay", "--attachable", "swarm-network")
             isIgnoreExitValue = true
         }
 
-        // Distribuisci lo stack usando Docker Compose
+        // Deploy the stack using Docker Compose
         exec {
             environment("JOIN_TOKEN", joinToken)
             environment("MANAGER_IP", managerIp)
@@ -60,14 +76,39 @@ tasks.register("setupAndDeploy") {
         println("Stack deployed successfully. Worker nodes should now be joining the swarm.")
     }
 
-    doLast {
-        exec {
-            commandLine("docker", "stack", "deploy", "-c", "portainer.yml", "portainer")
-        }
+    //finalizedBy("deployPortainer")
+}
 
-        // Verifica lo stato dei nodi
-        exec {
-            commandLine("docker", "node", "ls")
-        }
+/*tasks.register("deployPortainer") {
+    exec {
+        commandLine("docker", "stack", "deploy", "-c", "portainer.yml", "portainer")
     }
 }
+
+tasks.register<Test>("testSwarmDeployed") {
+    shouldRunAfter("deploySwarm")
+    doLast {
+        // Ottieni i nomi dei container
+        val containerNames = ByteArrayOutputStream()
+        exec {
+            commandLine("docker-compose", "ps", "--format", "{{.Name}}")
+            standardOutput = containerNames
+        }
+
+        // Estrai i nomi dall'output
+        val namesList = containerNames.toString().trim().split("\n")
+
+        val nodeOutput = ByteArrayOutputStream()
+        exec {
+            commandLine("docker", "node", "ls")
+            standardOutput = nodeOutput
+        }
+        println("Current swarm nodes: ${nodeOutput.toString().trim()}")
+
+        // Verifica se i nodi sono stati aggiunti correttamente
+        assertTrue((namesList.size + 1) == nodeOutput.toString().split("\n").size,
+            "Not all nodes joined the current swarm. Please, fix it and try again.")
+
+        println("All tests passed.")
+    }
+} */
