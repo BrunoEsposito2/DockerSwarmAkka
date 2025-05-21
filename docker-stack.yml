@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  prova1:
+    image: brunoesposito2/ubuntu_opencv_build
+    command: /bin/bash -c "echo 'prova 1 attivato'"
+  prova2:
+    image: brunoesposito2/ubuntu_opencv_build
+    command: /bin/bash -c "echo 'prova 2 attivato'"

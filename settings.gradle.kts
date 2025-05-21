@@ -13,5 +13,5 @@ plugins {
 }
 
 rootProject.name = "DockerSwarmProject"
-include("app", "node2")
-include("common")
+include("node1", "node2")
+//include("common")

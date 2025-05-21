@@ -85,3 +85,23 @@ tasks.register("runScalaMain") {
         }
     }
 }
+
+tasks.jar {
+    manifest {
+        attributes["Main-Class"] = application.mainClass
+    }
+
+    // Questo assicura che tutte le dipendenze, inclusa scala-library, siano incluse nel JAR
+    from(sourceSets.main.get().output)
+    dependsOn(configurations.runtimeClasspath)
+    from({
+        configurations.runtimeClasspath.get().filter { it.name.endsWith("jar") }.map { zipTree(it) }
+    }) {
+        exclude("META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA")
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    // Opzionale: rinomina il file JAR per includere "fat" o "all" nel nome
+    archiveClassifier.set("fat")
+}
