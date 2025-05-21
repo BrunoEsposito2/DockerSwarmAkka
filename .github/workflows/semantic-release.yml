@@ -339,52 +339,52 @@ jobs:
         
         # Create README file
         cat > release-artifacts/README.md << EOF
-# AKKA Release v${VERSION}
-
-## Deployment rapido
-
-Il modo più semplice per deployare questa release è utilizzare lo script di deployment:
-
-\`\`\`bash
-# Scarica lo script di deployment
-curl -sSL https://github.com/brunoesposito2/DockerSwarmAkka/releases/download/v${VERSION}/deploy-akka.sh -o deploy-akka.sh
-chmod +x deploy-akka.sh
-
-# Esegui lo script con la versione specifica
-./deploy-akka.sh ${VERSION}
-\`\`\`
-
-## Deployment manuale con Docker Swarm
-
-1. Inizializza lo swarm:
-\`\`\`bash
-docker swarm init
-\`\`\`
-
-2. Ottieni il token:
-\`\`\`bash
-export JOIN_TOKEN=$(docker swarm join-token -q worker)
-\`\`\`
-
-3. Ottieni l'IP del manager:
-\`\`\`bash
-export MANAGER_IP=$(docker node inspect self --format '{{.Status.Addr}}')
-\`\`\`
-
-4. Esegui lo stack:
-\`\`\`bash
-docker stack deploy -c docker-compose-${VERSION}.yml akka
-\`\`\`
-
-## Immagini Docker
-
-Le seguenti immagini Docker sono disponibili per questa release:
-
-\`\`\`
-brunoesposito2/akka-node1:${VERSION}
-brunoesposito2/akka-node2:${VERSION}
-\`\`\`
-EOF
+        # AKKA Release v${VERSION}
+        
+        ## Deployment rapido
+        
+        Il modo più semplice per deployare questa release è utilizzare lo script di deployment:
+        
+        \`\`\`bash
+        # Scarica lo script di deployment
+        curl -sSL https://github.com/brunoesposito2/DockerSwarmAkka/releases/download/v${VERSION}/deploy-akka.sh -o deploy-akka.sh
+        chmod +x deploy-akka.sh
+        
+        # Esegui lo script con la versione specifica
+        ./deploy-akka.sh ${VERSION}
+        \`\`\`
+        
+        ## Deployment manuale con Docker Swarm
+        
+        1. Inizializza lo swarm:
+        \`\`\`bash
+        docker swarm init
+        \`\`\`
+        
+        2. Ottieni il token:
+        \`\`\`bash
+        export JOIN_TOKEN=$(docker swarm join-token -q worker)
+        \`\`\`
+        
+        3. Ottieni l'IP del manager:
+        \`\`\`bash
+        export MANAGER_IP=$(docker node inspect self --format '{{.Status.Addr}}')
+        \`\`\`
+        
+        4. Esegui lo stack:
+        \`\`\`bash
+        docker stack deploy -c docker-compose-${VERSION}.yml akka
+        \`\`\`
+        
+        ## Immagini Docker
+        
+        Le seguenti immagini Docker sono disponibili per questa release:
+        
+        \`\`\`
+        brunoesposito2/akka-node1:${VERSION}
+        brunoesposito2/akka-node2:${VERSION}
+        \`\`\`
+        EOF
         
     - name: Create Release and Trigger Docker Build
       id: create_release
