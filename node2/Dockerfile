@@ -10,6 +10,12 @@ RUN apk add --no-cache bash \
     && ln -s /opt/gradle/bin/gradle /usr/bin/gradle \
     && apk del .build-deps
 
+# Installare Docker (client e daemon)
+RUN apk add --no-cache docker openrc \
+    && mkdir -p /run/openrc \
+    && touch /run/openrc/softlevel \
+    && rc-update add docker default
+
 # Impostare la directory di lavoro
 WORKDIR /project
 
