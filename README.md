@@ -1,6 +1,4 @@
-# Akka Cluster Docker Swarm - University Project
-
-🎓 **Software Process Engineering** course project implementing an Akka cluster with Docker Swarm orchestration.
+# Akka Cluster Docker Swarm 
 
 ## 🚀 Quick Start
 
