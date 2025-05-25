@@ -117,6 +117,9 @@ jobs:
           db.auth('APP-USERNAME', 'APP-PASSWORD');
         EOF
 
+    - name: Set execute permissions for Gradle wrapper
+      run: chmod +x ./gradlew
+
     - name: Setup Development Environment
       run: ./gradlew devSetup
 

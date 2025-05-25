@@ -22,6 +22,15 @@ jobs:
         git config --local user.name "github-actions[bot]"
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
        
+    - name: Set execute permissions for Gradle wrapper
+      run: chmod +x ./gradlew
+
+    - name: Setup Development Environment
+      run: ./gradlew devSetup
+
+    - name: Validate API Before Release
+      run: ./gradlew apiValidate
+
     - name: Generate API Documentation
       run: ./gradlew apiDocs
 
@@ -495,6 +504,12 @@ jobs:
           release-artifacts/deploy-akka.sh
       env:
         GITHUB_TOKEN: ${{ secrets.TEST_TOKEN }}
+
+    - name: Upload API Documentation
+      uses: actions/upload-artifact@v4
+      with:
+        name: api-documentation
+        path: docs/api/generated/
 
     - name: Commit Updated Documentation
       if: steps.version.outputs.skip_release != 'true'
