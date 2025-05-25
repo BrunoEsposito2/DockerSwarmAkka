@@ -21,7 +21,10 @@ jobs:
       run: |
         git config --local user.name "github-actions[bot]"
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        
+       
+    - name: Generate API Documentation
+      run: ./gradlew apiDocs
+
     - name: Determine version increment
       id: version
       run: |
@@ -40,8 +43,15 @@ jobs:
         
         # Get all commit messages since the last tag
         echo "Analyzing commits since tag $LATEST_TAG"
-        COMMITS=$(git log $LATEST_TAG..HEAD --pretty=format:"%s")
-        echo "Commits found: $COMMITS"
+        if [ "$LATEST_TAG" = "v0.1.0" ] && ! git tag | grep -q "v0.1.0"; then
+          # No previous tags, analyze all commits
+          COMMITS=$(git log --pretty=format:"%s")
+        else
+          COMMITS=$(git log $LATEST_TAG..HEAD --pretty=format:"%s")
+        fi
+
+        echo "Commits found:"
+        echo "$COMMITS"
         
         # Initialize flags to track if we need to increment different parts
         NEED_MAJOR=false
@@ -51,43 +61,62 @@ jobs:
         # Loop through each commit message
         echo "Analyzing commit types..."
         while IFS= read -r commit; do
+          [ -z "$commit" ] && continue
           echo "Analyzing: $commit"
           
-          # Check for breaking changes (with ! or BREAKING CHANGE)
-          if [[ $commit == feat!:* || $commit == fix!:* || $commit == refactor!:* || $commit == perf!:* || $commit == *"BREAKING CHANGE"* ]]; then
+          # Check for breaking changes (MAJOR version bump)
+          if [[ $commit =~ ^[a-zA-Z]+(\([^)]*\))?!: ]] || [[ $commit == *"BREAKING CHANGE"* ]]; then
             echo "  - Breaking change detected"
             NEED_MAJOR=true
-          # Check for feature commits
-          elif [[ $commit == feat:* ]]; then
+          # Check for new features (MINOR version bump)
+          elif [[ $commit =~ ^feat(\([^)]*\))?: ]]; then
             echo "  - Feature detected"
             NEED_MINOR=true
-          # Check for fix commits
-          elif [[ $commit == fix:* ]]; then
-            echo "  - Fix detected"
+          # Check for fixes and other patch-level changes
+          elif [[ $commit =~ ^(fix|docs|style|refactor|perf|test|chore|build|ci)(\([^)]*\))?: ]]; then
+            echo "  - Patch-level change detected"
             NEED_PATCH=true
-          # Other types of commits will increment patch
-          elif [[ $commit =~ ^(docs|style|refactor|perf|test|chore): ]]; then
-            echo "  - Other conventional commit type detected"
+          else
+            echo "  - Non-conventional commit (treated as patch): $commit"
             NEED_PATCH=true
           fi
         done <<< "$COMMITS"
         
-        # Determine the final version increment
-        if [ "$NEED_MAJOR" = true ]; then
-          echo "Breaking changes found - incrementing MAJOR version"
-          MAJOR=$((MAJOR + 1))
-          MINOR=0
-          PATCH=0
-        elif [ "$NEED_MINOR" = true ]; then
-          echo "Features found - incrementing MINOR version"
-          MINOR=$((MINOR + 1))
-          PATCH=0
-        elif [ "$NEED_PATCH" = true ]; then
-          echo "Fixes or other changes found - incrementing PATCH version"
-          PATCH=$((PATCH + 1))
+        # Special handling for version 0.x.x (initial development)
+        if [ "$MAJOR" -eq 0 ]; then
+          echo "Currently in initial development phase (0.x.x)"
+          # In 0.x.x, breaking changes increment MINOR, features increment MINOR
+          if [ "$NEED_MAJOR" = true ] || [ "$NEED_MINOR" = true ]; then
+            echo "Incrementing MINOR version"
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          elif [ "$NEED_PATCH" = true ]; then
+            echo "Incrementing PATCH version"
+            PATCH=$((PATCH + 1))
+          else
+            echo "No releasable changes found"
+            echo "skip_release=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
         else
-          echo "No conventional commits found - incrementing PATCH version as default"
-          PATCH=$((PATCH + 1))
+          # Standard SemVer logic for stable versions (1.x.x+)
+          if [ "$NEED_MAJOR" = true ]; then
+            echo "Breaking changes found - incrementing MAJOR version"
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          elif [ "$NEED_MINOR" = true ]; then
+            echo "Features found - incrementing MINOR version"
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          elif [ "$NEED_PATCH" = true ]; then
+            echo "Fixes or other changes found - incrementing PATCH version"
+            PATCH=$((PATCH + 1))
+          else
+            echo "No releasable changes found"
+            echo "skip_release=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
         fi
         
         NEW_VERSION="$MAJOR.$MINOR.$PATCH"
@@ -96,58 +125,109 @@ jobs:
         echo "New version will be: v$NEW_VERSION"
         
     - name: Create Release Notes
+      if: steps.version.outputs.skip_release != 'true'
       id: release_notes
       run: |
         echo "Generating release notes..."
         
-        # Create release notes content
-        NOTES=$(cat << EOF
-        # Release v${{ steps.version.outputs.new_version }}
+        # Categorize commits
+        FEAT_COMMITS=""
+        FIX_COMMITS=""
+        BREAKING_COMMITS=""
+        OTHER_COMMITS=""
         
-        Automated release generated from the changes between ${{ steps.version.outputs.previous_tag }} and HEAD.
+        if [ "${{ steps.version.outputs.previous_tag }}" = "v0.1.0" ] && ! git tag | grep -q "v0.1.0"; then
+          COMMITS=$(git log --pretty=format:"%s")
+        else
+          COMMITS=$(git log ${{ steps.version.outputs.previous_tag }}..HEAD --pretty=format:"%s")
+        fi
         
-        ## 🔄 Quick Deployment
+        while IFS= read -r commit; do
+          [ -z "$commit" ] && continue
+          if [[ $commit =~ ^[a-zA-Z]+(\([^)]*\))?!: ]] || [[ $commit == *"BREAKING CHANGE"* ]]; then
+            BREAKING_COMMITS="$BREAKING_COMMITS\n- $commit"
+          elif [[ $commit =~ ^feat(\([^)]*\))?: ]]; then
+            FEAT_COMMITS="$FEAT_COMMITS\n- ${commit#feat*: }"
+          elif [[ $commit =~ ^fix(\([^)]*\))?: ]]; then
+            FIX_COMMITS="$FIX_COMMITS\n- ${commit#fix*: }"
+          else
+            OTHER_COMMITS="$OTHER_COMMITS\n- $commit"
+          fi
+        done <<< "$COMMITS"
         
-        The simplest way to deploy this release is with our deployment script:
-        
+        # Create release notes
+        NOTES="# Release v${{ steps.version.outputs.new_version }}
+
+        ## 🚀 Akka Cluster Docker Swarm Project
+
+        Automated release for the university project implementing Akka clustering with Docker Swarm.
+
+        ## 📦 Docker Images
+
+        This release includes the following Docker images:
+        - \`brunoesposito2/akka-node1:${{ steps.version.outputs.new_version }}\`
+        - \`brunoesposito2/akka-node2:${{ steps.version.outputs.new_version }}\`
+
+        ## 🔧 Quick Deployment
+
         \`\`\`bash
         # Download the deployment script
-        curl -sSL https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.new_version }}/deploy-akka.sh -o deploy-akka.sh
+        curl -sSL https://github.com/brunoesposito2/DockerSwarmAkka/releases/download/v${VERSION}/deploy-akka.sh -o deploy-akka.sh
         chmod +x deploy-akka.sh
         
-        # Run the deployment script with the version
-        ./deploy-akka.sh ${{ steps.version.outputs.new_version }}
+        # Run the script with the specified version
+        ./deploy-akka.sh ${VERSION}
+
         \`\`\`
+
+        ## 📋 Changes"
+                
+                if [ -n "$BREAKING_COMMITS" ]; then
+                  NOTES="$NOTES
+
+        ### ⚠️ BREAKING CHANGES
+        $BREAKING_COMMITS"
+                fi
+                
+                if [ -n "$FEAT_COMMITS" ]; then
+                  NOTES="$NOTES
+
+        ### ✨ New Features
+        $FEAT_COMMITS"
+                fi
+                
+                if [ -n "$FIX_COMMITS" ]; then
+                  NOTES="$NOTES
+
+        ### 🐛 Bug Fixes
+        $FIX_COMMITS"
+                fi
+                
+                if [ -n "$OTHER_COMMITS" ]; then
+                  NOTES="$NOTES
+
+        ### 🔧 Other Changes
+        $OTHER_COMMITS"
+                fi
+                
+                NOTES="$NOTES
+
+        ## 🎓 Academic Context
+
+        This project demonstrates:
+        - Akka Actor Model implementation
+        - Distributed systems with clustering
+        - Docker containerization and orchestration
+        - CI/CD with semantic versioning
+        - Infrastructure as Code principles
+
+        [Full Changelog](https://github.com/${{ github.repository }}/compare/${{ steps.version.outputs.previous_tag }}...v${{ steps.version.outputs.new_version }})"
+                
+        # Save notes to file for GitHub release
+        echo "$NOTES" > release_notes.md
         
-        ## 🐳 Docker Images
-        
-        This release is available as Docker images:
-        
-        \`\`\`
-        brunoesposito2/akka-node1:${{ steps.version.outputs.new_version }}
-        brunoesposito2/akka-node2:${{ steps.version.outputs.new_version }}
-        \`\`\`
-        
-        ## 📋 Changelog
-        
-        $(git log ${{ steps.version.outputs.previous_tag }}..HEAD --pretty=format:"- %s" | grep -E "^- (feat|fix|perf|refactor)(\([^)]*\))?(!)?:")
-        
-        ### ⚠️ Breaking Changes
-        
-        $(git log ${{ steps.version.outputs.previous_tag }}..HEAD --pretty=format:"- %s" | grep -E "^- (feat|fix|perf|refactor)(\([^)]*\))?!:")
-        
-        [Full Changelog](https://github.com/${{ github.repository }}/compare/${{ steps.version.outputs.previous_tag }}...v${{ steps.version.outputs.new_version }})
-        EOF
-        )
-        
-        # Escape multiline content for GitHub Actions
-        NOTES="${NOTES//'%'/'%25'}"
-        NOTES="${NOTES//$'\n'/'%0A'}"
-        NOTES="${NOTES//$'\r'/'%0D'}"
-        
-        echo "::set-output name=content::$NOTES"
-        
-    - name: Prepare Production Docker Compose
+    - name: Prepare Production Docker Compose # sostituirlo con qualcosa che va a prendere il docker compose di produzione 
+                                        # e lo modifica aggiornando solo la versione delle immagini da considerare
       run: |
         VERSION=${{ steps.version.outputs.new_version }}
         mkdir -p release-artifacts
@@ -378,7 +458,7 @@ jobs:
         \`\`\`
         EOF
         
-    - name: Create Release and Trigger Docker Build
+    - name: Create Release and Trigger Docker Build # triggerare l'action docker-publish prima di fare la release 
       id: create_release
       uses: softprops/action-gh-release@v1
       env:
@@ -390,7 +470,7 @@ jobs:
         prerelease: false
         body: ${{ steps.release_notes.outputs.content }}
         
-    - name: Update version in project
+    - name: Update version in project # Nota (da fare in generale, non qui): aggiungere la parte di versione nel build.gradle di ogni file di progetto 
       run: |
         NEW_VERSION="${{ steps.version.outputs.new_version }}"
         
@@ -415,3 +495,28 @@ jobs:
           release-artifacts/deploy-akka.sh
       env:
         GITHUB_TOKEN: ${{ secrets.TEST_TOKEN }}
+
+    - name: Commit Updated Documentation
+      if: steps.version.outputs.skip_release != 'true'
+      run: |
+        echo "📝 Checking for documentation updates..."
+        
+        if [ -d "docs/api/generated" ] && [ "$(ls -A docs/api/generated 2>/dev/null)" ]; then
+          if ! git diff --quiet docs/api/generated/ 2>/dev/null; then
+            echo "📚 Documentation changes detected, committing..."
+            git add docs/api/generated/
+            git commit -m "docs: update API documentation for v${{ steps.version.outputs.new_version }}
+
+        [skip ci]
+
+        - Updated message protocols documentation  
+        - Updated Docker services documentation
+        - Auto-generated from release v${{ steps.version.outputs.new_version }}"
+                    git push
+                    echo "✅ Documentation committed and pushed"
+                  else
+                    echo "📄 Documentation unchanged, no commit needed"
+                  fi
+                else
+                  echo "⚠️ No generated documentation found"
+                fi

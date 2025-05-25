@@ -117,10 +117,14 @@ jobs:
           db.auth('APP-USERNAME', 'APP-PASSWORD');
         EOF
 
+    - name: Setup Development Environment
+      run: ./gradlew devSetup
+
+    - name: Validate API Compliance
+      run: ./gradlew apiValidate
+
     - name: Run Gradle tests
-      run: |
-        subproject="${GITHUB_REF#refs/heads/}"
-        ./gradlew test
+      run: ./gradlew test
 
     - name: Push changes to next branch if tests pass
       if: success() && steps.determine-next.outputs.next_branch != ''
