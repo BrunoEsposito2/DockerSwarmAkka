@@ -179,7 +179,7 @@ jobs:
         BREAKING_COMMITS=""
         OTHER_COMMITS=""
         
-        if [ "${{ steps.version.outputs.previous_tag }}" = "v0.1.0" ] && ! git tag | grep -q "v0.1.0"; then
+        if [ "${{ steps.version.outputs.previous_tag }}" = "v0.0.0" ] || ! git tag | grep -q "${{ steps.version.outputs.previous_tag }}"; then
           COMMITS=$(git log --pretty=format:"%s")
         else
           COMMITS=$(git log ${{ steps.version.outputs.previous_tag }}..HEAD --pretty=format:"%s")
@@ -187,12 +187,20 @@ jobs:
         
         while IFS= read -r commit; do
           [ -z "$commit" ] && continue
-          if [[ $commit =~ ^[a-zA-Z]+(\([^)]*\))?!: ]] || [[ $commit == *"BREAKING CHANGE"* ]]; then
+          
+          # Check for breaking changes - SIMPLIFIED patterns
+          if [[ $commit == *"!"*":"* ]] || [[ $commit == *"BREAKING CHANGE"* ]]; then
             BREAKING_COMMITS="$BREAKING_COMMITS\n- $commit"
-          elif [[ $commit =~ ^feat(\([^)]*\))?: ]]; then
-            FEAT_COMMITS="$FEAT_COMMITS\n- ${commit#feat*: }"
-          elif [[ $commit =~ ^fix(\([^)]*\))?: ]]; then
-            FIX_COMMITS="$FIX_COMMITS\n- ${commit#fix*: }"
+          # Check for features - SIMPLIFIED patterns
+          elif [[ $commit == feat:* ]] || [[ $commit == feat\(*\):* ]]; then
+            # Remove the 'feat:' or 'feat(scope):' prefix
+            clean_commit=$(echo "$commit" | sed 's/^feat[^:]*: //')
+            FEAT_COMMITS="$FEAT_COMMITS\n- $clean_commit"
+          # Check for fixes - SIMPLIFIED patterns  
+          elif [[ $commit == fix:* ]] || [[ $commit == fix\(*\):* ]]; then
+            # Remove the 'fix:' or 'fix(scope):' prefix
+            clean_commit=$(echo "$commit" | sed 's/^fix[^:]*: //')
+            FIX_COMMITS="$FIX_COMMITS\n- $clean_commit"
           else
             OTHER_COMMITS="$OTHER_COMMITS\n- $commit"
           fi
@@ -215,45 +223,45 @@ jobs:
 
         \`\`\`bash
         # Download the deployment script
-        curl -sSL https://github.com/brunoesposito2/DockerSwarmAkka/releases/download/v${VERSION}/deploy-akka.sh -o deploy-akka.sh
+        curl -sSL https://github.com/brunoesposito2/DockerSwarmAkka/releases/download/v${{ steps.version.outputs.new_version }}/deploy-akka.sh -o deploy-akka.sh
         chmod +x deploy-akka.sh
-        
+
         # Run the script with the specified version
-        ./deploy-akka.sh ${VERSION}
+        ./deploy-akka.sh ${{ steps.version.outputs.new_version }}
 
         \`\`\`
 
         ## 📋 Changes"
-                
-                if [ -n "$BREAKING_COMMITS" ]; then
-                  NOTES="$NOTES
+                    
+            if [ -n "$BREAKING_COMMITS" ]; then
+              NOTES="$NOTES
 
         ### ⚠️ BREAKING CHANGES
-        $BREAKING_COMMITS"
-                fi
-                
-                if [ -n "$FEAT_COMMITS" ]; then
-                  NOTES="$NOTES
+        $(echo -e "$BREAKING_COMMITS")"
+            fi
+            
+            if [ -n "$FEAT_COMMITS" ]; then
+              NOTES="$NOTES
 
         ### ✨ New Features
-        $FEAT_COMMITS"
-                fi
-                
-                if [ -n "$FIX_COMMITS" ]; then
-                  NOTES="$NOTES
+        $(echo -e "$FEAT_COMMITS")"
+            fi
+            
+            if [ -n "$FIX_COMMITS" ]; then
+              NOTES="$NOTES
 
         ### 🐛 Bug Fixes
-        $FIX_COMMITS"
-                fi
-                
-                if [ -n "$OTHER_COMMITS" ]; then
-                  NOTES="$NOTES
+        $(echo -e "$FIX_COMMITS")"
+            fi
+            
+            if [ -n "$OTHER_COMMITS" ]; then
+              NOTES="$NOTES
 
         ### 🔧 Other Changes
-        $OTHER_COMMITS"
-                fi
-                
-                NOTES="$NOTES
+        $(echo -e "$OTHER_COMMITS")"
+            fi
+            
+            NOTES="$NOTES
 
         ## 🎓 Academic Context
 
@@ -265,9 +273,14 @@ jobs:
         - Infrastructure as Code principles
 
         [Full Changelog](https://github.com/${{ github.repository }}/compare/${{ steps.version.outputs.previous_tag }}...v${{ steps.version.outputs.new_version }})"
-                
-        # Save notes to file for GitHub release
-        echo "$NOTES" > release_notes.md
+            
+            # Save notes to file for GitHub release
+            echo "$NOTES" > release_notes.md
+            
+            # Also output for next step (escape newlines for GitHub Actions)
+            echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+            echo "$NOTES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
         
     - name: Prepare Production Docker Compose # sostituirlo con qualcosa che va a prendere il docker compose di produzione 
                                         # e lo modifica aggiornando solo la versione delle immagini da considerare
