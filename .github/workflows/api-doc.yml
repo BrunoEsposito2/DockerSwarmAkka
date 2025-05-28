@@ -164,6 +164,14 @@ jobs:
         # Clean up
         rm extract_public_api.sh
         
+    - name: Create Docker API index
+      run: |
+        cat > docs/api/v${{ steps.version.outputs.major_version }}/docker/index.md << EOF
+        # Docker Compose API v${{ steps.version.outputs.major_version }}
+        
+        - [Deployment Configuration](./deployment-api) - Service definitions and public interface
+        EOF
+
     - name: Generate Version-specific Index
       run: |
         cat > docs/api/v${{ steps.version.outputs.major_version }}/index.md << EOF
