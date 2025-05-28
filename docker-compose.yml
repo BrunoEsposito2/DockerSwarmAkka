@@ -1,28 +1,59 @@
+# Public API: Akka Cluster Docker Compose Configuration
+# 
+# This file defines the public deployment interface for the Akka cluster.
+# Changes to service names, exposed ports, or required environment variables
+# constitute breaking changes requiring a MAJOR version bump according to
+# Semantic Versioning.
+#
+# API Surface:
+# - Service names: worker1, worker2
+# - Exposed ports: 2555 (worker1), 2551 (worker2) 
+# - Required environment variables: JOIN_TOKEN, MANAGER_IP
+# - Network name: swarm-network
+
 services:
+  # Public API: Primary cluster node service
+  # Breaking changes: service name change, port mapping changes
   worker1:
     build:
       context: ./node1/
       dockerfile: Dockerfile
     privileged: true
     container_name: worker1
+    # Public API: Akka remoting port for primary node
+    # Port 2555 is the canonical port for worker1 cluster communication
+    # Changing this port breaks cluster formation - requires MAJOR version bump
     ports:
       - "2555:2555"
+    # Public API: Required environment variables for cluster deployment
+    # These variables must be provided for successful cluster formation
     environment:
+      # Docker Swarm join token - required for swarm node joining
       - JOIN_TOKEN=${JOIN_TOKEN}
+      # Docker Swarm manager IP address - required for swarm communication  
       - MANAGER_IP=${MANAGER_IP}
     volumes:
       - worker1-certs:/certs
+    # Public API: Cluster overlay network
+    # Network name 'swarm-network' is part of deployment interface
+    # Changing network name breaks inter-service communication
     networks:
       - swarm-network
 
+  # Public API: Secondary cluster node service  
+  # Breaking changes: service name change, port mapping changes
   worker2:
     build:
       context: ./node2/
       dockerfile: Dockerfile
     privileged: true
     container_name: worker2
+    # Public API: Akka remoting port for secondary node
+    # Port 2551 is the canonical port for worker2 cluster communication
+    # Changing this port breaks cluster formation - requires MAJOR version bump
     ports:
       - "2551:2551"
+    # Public API: Required environment variables (same as worker1)
     environment:
       - JOIN_TOKEN=${JOIN_TOKEN}
       - MANAGER_IP=${MANAGER_IP}
@@ -32,9 +63,13 @@ services:
       - swarm-network
 
 volumes:
+  # Internal volumes - not part of public API
   worker1-certs:
   worker2-certs:
 
+# Public API: Docker overlay network for cluster communication
+# Network configuration is part of the deployment interface
+# Driver and attachable settings ensure proper cluster connectivity
 networks:
   swarm-network:
     driver: overlay

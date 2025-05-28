@@ -1,3 +1,6 @@
+/*
+ * node1/src/main/scala/org/example/App.scala
+ */
 package org.example
 
 import scala.jdk.CollectionConverters.*
@@ -6,18 +9,13 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.cluster.typed.Cluster
 import com.typesafe.config.ConfigFactory
-import org.example.*
-import org.example.WorkerTwo.pingSelfRef
+
+// Import from public API
+import org.example.api.protocol.{Message, Ping, Pong}
+import org.example.api.discovery.ServiceKeys
 
 import java.util.logging.LogManager
 import scala.collection.immutable.HashMap
-
-trait Message
-final case class Pong(replyTo: ActorRef[Ping]) extends Message
-final case class Ping(replyTo: ActorRef[Pong]) extends Message
-
-val PongServiceKey = ServiceKey[Message]("pongService")
-val PingServiceKey = ServiceKey[Message]("pingService")
 
 object WorkerTwo {
   var pingSelfRef: Option[ActorRef[Message]] = Option.empty[ActorRef[Message]]
@@ -28,7 +26,7 @@ class WorkerTwo {
   def behavior(): Behavior[Message] =
     Behaviors.setup { context =>
       WorkerTwo.pingSelfRef = Option(context.self)
-      context.system.receptionist ! Receptionist.Register(PingServiceKey, context.self)
+      context.system.receptionist ! Receptionist.Register(ServiceKeys.PingServiceKey, context.self)
       Behaviors.receiveMessagePartial(getReachableBehavior(context))
     }
 
@@ -71,9 +69,9 @@ object App:
         Behaviors.receiveMessage {
           case FindPong =>
             println("Finding pong actors...")
-            ctx.system.receptionist ! Receptionist.Find(ServiceKey[Message]("pongService"), listingResponseAdapter)
+            ctx.system.receptionist ! Receptionist.Find(ServiceKeys.PongServiceKey, listingResponseAdapter)
             Behaviors.same
-          case ListingResponse(PongServiceKey.Listing(listings)) =>
+          case ListingResponse(ServiceKeys.PongServiceKey.Listing(listings)) =>
             println("Received pongService")
             if (listings.nonEmpty) pongRef = listings.head
             Behaviors.same
