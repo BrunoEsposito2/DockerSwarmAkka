@@ -75,79 +75,91 @@ jobs:
       run: |
         mkdir -p docs/api/v${{ steps.version.outputs.major_version }}/docker
         
+        # Install yq for YAML parsing
+        sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+        sudo chmod +x /usr/local/bin/yq
+        
         echo "# Docker Compose Public API v${{ steps.version.outputs.major_version }}" > docs/api/v${{ steps.version.outputs.major_version }}/docker/deployment-api.md
         echo "" >> docs/api/v${{ steps.version.outputs.major_version }}/docker/deployment-api.md
         echo "**Version:** ${{ steps.version.outputs.version }}" >> docs/api/v${{ steps.version.outputs.major_version }}/docker/deployment-api.md
         echo "**Generated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> docs/api/v${{ steps.version.outputs.major_version }}/docker/deployment-api.md
         echo "" >> docs/api/v${{ steps.version.outputs.major_version }}/docker/deployment-api.md
         
-        # Extract only Public API sections from docker-compose.yml
-        awk '
-        /# Public API:/ { 
-          in_public_api = 1
-          print
-          next
+        # Extract public API configuration using yq
+        cat > extract_public_api.sh << 'EOF'
+        #!/bin/bash
+        
+        # Extract public API header comments
+        extract_api_header() {
+          echo "## API Overview"
+          echo ""
+          sed -n '/^# Public API:/,/^$/p' docker-compose.yml | sed 's/^# *//' | sed 's/^#$//'
+          echo ""
         }
-        in_public_api && /^#/ {
-          print
-          next
+        
+        # Extract services marked as Public API
+        extract_public_services() {
+          echo "## Public Services"
+          echo ""
+          
+          # Get services with "Public API" comment markers
+          yq eval '.services | keys | .[]' docker-compose.yml | while read -r service; do
+            # Check if service block has Public API comment above it
+            service_line=$(grep -n "^  ${service}:" docker-compose.yml | cut -d: -f1)
+            
+            # Look for Public API comment in the 5 lines before service definition
+            if [ -n "$service_line" ]; then
+              start_line=$((service_line - 5))
+              if [ $start_line -lt 1 ]; then start_line=1; fi
+              
+              if sed -n "${start_line},${service_line}p" docker-compose.yml | grep -q "# Public API:"; then
+                echo "### $service"
+                echo ""
+                
+                # Extract service-specific Public API comments
+                sed -n "${start_line},$((service_line - 1))p" docker-compose.yml | \
+                grep "# Public API:" | sed 's/^[ ]*# Public API: */- /'
+                echo ""
+                
+                echo '```yaml'
+                yq eval ".services.${service}" docker-compose.yml
+                echo '```'
+                echo ""
+              fi
+            fi
+          done
         }
-        in_public_api && /^[^#]/ {
-          if (!printed_code_block) {
-            print "```yaml"
-            printed_code_block = 1
-          }
-          print
-          next
+        
+        # Extract public networks (those referenced in public services)
+        extract_public_networks() {
+          echo "## Public Networks"
+          echo ""
+          
+          # Check if swarm-network is used (from the API comments)
+          if yq eval '.networks | has("swarm-network")' docker-compose.yml | grep -q true; then
+            echo "### swarm-network"
+            echo ""
+            echo "- Cluster overlay network for service communication"
+            echo "- Part of deployment interface - name changes require MAJOR version bump"
+            echo ""
+            echo '```yaml'
+            yq eval '.networks.swarm-network' docker-compose.yml
+            echo '```'
+            echo ""
+          fi
         }
-        in_public_api && /^$/ {
-          print
-          next
-        }
-        !in_public_api || (/^[a-zA-Z]/ && !/^#/) {
-          if (printed_code_block) {
-            print "```"
-            print ""
-            printed_code_block = 0
-          }
-          in_public_api = 0
-        }
-        END {
-          if (printed_code_block) {
-            print "```"
-          }
-        }
-        ' docker-compose.yml >> docs/api/v${{ steps.version.outputs.major_version }}/docker/deployment-api.md
         
-        # Create Docker API index
-        cat > docs/api/v${{ steps.version.outputs.major_version }}/docker/index.md << EOF
-        # Deployment API v${{ steps.version.outputs.major_version }}
-        
-        **Version:** ${{ steps.version.outputs.version }}  
-        **Generated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-        
-        ## Docker Compose Public Interface
-        
-        - [Deployment Configuration](./deployment-api.md) - Service definitions and networking
-        
-        ## Breaking Changes Policy
-        
-        The following changes require a **MAJOR** version bump:
-        
-        | Component | Breaking Change Examples |
-        |-----------|-------------------------|
-        | **Service Names** | Renaming \`worker1\` or \`worker2\` |
-        | **Port Mappings** | Changing \`2555:2555\` or \`2551:2551\` |
-        | **Environment Variables** | Removing or renaming \`JOIN_TOKEN\`, \`MANAGER_IP\` |
-        | **Network Names** | Changing \`swarm-network\` name |
-        
-        ## Backward Compatibility
-        
-        - ✅ **MINOR**: Adding new optional environment variables
-        - ✅ **MINOR**: Adding new volumes (non-breaking)
-        - ✅ **PATCH**: Internal build configuration changes
-        - ❌ **MAJOR**: Any changes to the public interface above
+        # Execute extraction functions
+        extract_api_header
+        extract_public_services
+        extract_public_networks
         EOF
+        
+        chmod +x extract_public_api.sh
+        ./extract_public_api.sh >> docs/api/v${{ steps.version.outputs.major_version }}/docker/deployment-api.md
+        
+        # Clean up
+        rm extract_public_api.sh
         
     - name: Generate Version-specific Index
       run: |
@@ -290,22 +302,22 @@ jobs:
                 <div class="card">
                     <h2>🚀 Quick Start</h2>
                     <p>Deploy the cluster with Docker Compose:</p>
-                    <pre>git clone https://github.com/brunoesposito2/DockerSwarmAkka.git
+                    <pre>
+                    git clone https://github.com/brunoesposito2/DockerSwarmAkka.git
                     cd DockerSwarmAkka
                     docker-compose up -d</pre>
-                                </div>
-                                
-                                <div class="card">
-                                    <h2>🔗 Links</h2>
-                                    <ul>
-                                        <li><a href="https://github.com/brunoesposito2/DockerSwarmAkka">GitHub Repository</a></li>
-                                        <li><a href="https://github.com/brunoesposito2/DockerSwarmAkka/releases">Releases</a></li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </body>
-                        </html>
-                        EOF
+                </div>
+                
+                <div class="card">
+                    <h2>🔗 Links</h2>
+                    <ul>
+                        <li><a href="https://github.com/brunoesposito2/DockerSwarmAkka">GitHub Repository</a></li>
+                        <li><a href="https://github.com/brunoesposito2/DockerSwarmAkka/releases">Releases</a></li>
+                    </ul>
+                </div>
+            </div>
+        </body>
+        </html>
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
@@ -329,5 +341,5 @@ jobs:
         echo "- ✅ Main API index updated" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 🔗 Links" >> $GITHUB_STEP_SUMMARY
-        echo "- [View API Documentation](https://brunoesposito2.github.io/DockerSwarmAkka/api/)" >> $GITHUB_STEP_SUMMARY
+        echo "- [View API Documentation](https://brunoesposito2.github.io/DockerSwarmAkka/)" >> $GITHUB_STEP_SUMMARY
         echo "- [Version v${{ steps.version.outputs.major_version }} Docs](https://brunoesposito2.github.io/DockerSwarmAkka/api/v${{ steps.version.outputs.major_version }}/)" >> $GITHUB_STEP_SUMMARY
