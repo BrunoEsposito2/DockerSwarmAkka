@@ -57,7 +57,7 @@ jobs:
       run: |
         echo "Generating Scaladoc for Public API..."
         
-        ../gradlew scaladoc -PincludePackages="org.example.api"
+        ./gradlew scaladoc -PincludePackages="org.example.api"
         
         # Create versioned documentation structure
         mkdir -p docs/api/v${{ steps.version.outputs.major_version }}
