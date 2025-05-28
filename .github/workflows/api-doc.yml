@@ -290,6 +290,8 @@ jobs:
         theme: minima
         markdown: kramdown
         highlighter: rouge
+        plugins:
+          - jekyll-feed
         EOF
 
     - name: Create main site index
@@ -320,10 +322,34 @@ jobs:
         - [Releases](https://github.com/brunoesposito2/DockerSwarmAkka/releases)
         EOF
 
+    - name: Setup Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.1'
+        bundler-cache: true
+
+    - name: Create Gemfile
+      run: |
+        cat > docs/Gemfile << EOF
+        source "https://rubygems.org"
+        gem "github-pages", group: :jekyll_plugins
+        gem "jekyll-feed"
+        EOF
+
+    - name: Install dependencies
+      run: |
+        cd docs
+        bundle install
+
+    - name: Build with Jekyll
+      run: |
+        cd docs
+        bundle exec jekyll build --destination _site
+
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        path: ./docs/
+        path: ./docs/_site
 
     - name: Deploy to GitHub Pages
       uses: actions/deploy-pages@v4
