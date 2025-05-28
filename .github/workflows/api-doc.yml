@@ -296,50 +296,31 @@ jobs:
 
     - name: Create main site index
       run: |
-        cat > docs/index.html << EOF
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Akka Cluster Docker Swarm</title>
-            <style>
-                body { font-family: system-ui, sans-serif; margin: 0; padding: 40px; background: #f8f9fa; }
-                .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; }
-                h1 { color: #1a1a1a; border-bottom: 3px solid #007acc; padding-bottom: 10px; }
-                .card { background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 6px; border-left: 4px solid #007acc; }
-                a { color: #007acc; text-decoration: none; }
-                a:hover { text-decoration: underline; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>🎭 Akka Cluster Docker Swarm</h1>
-                <p>Distributed Akka cluster deployment using Docker Swarm with automated scaling and service discovery.</p>
-                
-                <div class="card">
-                    <h2>📚 API Documentation</h2>
-                    <p>Complete public API documentation with versioning support.</p>
-                    <a href="./api/v${{ steps.version.outputs.major_version }}/">→ Browse API Documentation</a>
-                </div>
-                
-                <div class="card">
-                    <h2>🚀 Quick Start</h2>
-                    <p>Deploy the cluster with Docker Compose:</p>
-                    <pre>
-                    git clone https://github.com/brunoesposito2/DockerSwarmAkka.git
-                    cd DockerSwarmAkka
-                    docker-compose up -d</pre>
-                </div>
-                
-                <div class="card">
-                    <h2>🔗 Links</h2>
-                    <ul>
-                        <li><a href="https://github.com/brunoesposito2/DockerSwarmAkka">GitHub Repository</a></li>
-                        <li><a href="https://github.com/brunoesposito2/DockerSwarmAkka/releases">Releases</a></li>
-                    </ul>
-                </div>
-            </div>
-        </body>
-        </html>
+        cat > docs/index.md << EOF
+        ---
+        layout: default
+        ---
+        
+        # 🎭 Akka Cluster Docker Swarm
+        
+        Distributed Akka cluster deployment using Docker Swarm with automated scaling and service discovery.
+        
+        ## 📚 API Documentation
+        Complete public API documentation with versioning support.
+        [→ Browse API Documentation](./api/v${{ steps.version.outputs.major_version }}/)
+        
+        ## 🚀 Quick Start
+        Deploy the cluster with Docker Compose:
+        \`\`\`bash
+        git clone https://github.com/brunoesposito2/DockerSwarmAkka.git
+        cd DockerSwarmAkka
+        docker-compose up -d
+        \`\`\`
+        
+        ## 🔗 Links
+        - [GitHub Repository](https://github.com/brunoesposito2/DockerSwarmAkka)
+        - [Releases](https://github.com/brunoesposito2/DockerSwarmAkka/releases)
+        EOF
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
