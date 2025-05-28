@@ -260,6 +260,29 @@ jobs:
         Generated automatically from [brunoesposito2/DockerSwarmAkka](https://github.com/brunoesposito2/DockerSwarmAkka) releases.
         EOF
         
+    - name: Create main API redirect
+      run: |
+        # Crea un index.html che reindirizza alla versione più recente
+        LATEST_VERSION=$(ls docs/api/ | grep "^v[0-9]" | sort -V -r | head -n1)
+        
+        cat > docs/api/index.html << EOF
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta http-equiv="refresh" content="0; url=./$LATEST_VERSION/">
+            <title>Akka Cluster API Documentation</title>
+        </head>
+        <body>
+            <h1>Akka Cluster API Documentation</h1>
+            <p>Redirecting to latest version...</p>
+            <p><a href="./$LATEST_VERSION/">Click here if not redirected</a></p>
+        </body>
+        </html>
+        EOF
+        
+        echo "Created redirect to $LATEST_VERSION"
+
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
