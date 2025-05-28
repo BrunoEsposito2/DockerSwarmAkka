@@ -167,9 +167,13 @@ jobs:
     - name: Create Docker API index
       run: |
         cat > docs/api/v${{ steps.version.outputs.major_version }}/docker/index.md << EOF
-        # Docker Compose API v${{ steps.version.outputs.major_version }}
+        ---
+        layout: page
+        title: Docker Compose API v${{ steps.version.outputs.major_version }}
+        ---
         
-        - [Deployment Configuration](./deployment-api) - Service definitions and public interface
+        ## Deployment Configuration
+        [View detailed configuration](./deployment-api)
         EOF
 
     - name: Generate Version-specific Index
