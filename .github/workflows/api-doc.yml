@@ -260,13 +260,13 @@ jobs:
         Generated automatically from [brunoesposito2/DockerSwarmAkka](https://github.com/brunoesposito2/DockerSwarmAkka) releases.
         EOF
         
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ./docs
+
     - name: Deploy to GitHub Pages
       uses: actions/deploy-pages@v4
-      with:
-        github_token: ${{ secrets.TEST_TOKEN }}
-        publish_dir: ./docs
-        keep_files: true
-        destination_dir: .
         
     - name: Summary
       run: |
