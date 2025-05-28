@@ -348,7 +348,17 @@ jobs:
         ## 📚 API Documentation
         Complete public API documentation with versioning support.
         
-        [→ Browse API Documentation](./api/v${{ steps.version.outputs.major_version }}/)
+        ### 📨 Message Protocol API
+        - [Scala API Documentation](./api/v${{ steps.version.outputs.major_version }}/scala/) - Actor message protocols and service keys
+        - [Browse Scaladoc](./api/v${{ steps.version.outputs.major_version }}/index.html) - Complete API reference
+        
+        ### 🐳 Deployment API  
+        - [Docker Compose Interface](./api/v${{ steps.version.outputs.major_version }}/docker/) - Service configuration and networking
+        - [Deployment Configuration](./api/v${{ steps.version.outputs.major_version }}/docker/deployment-api.html) - Detailed service definitions
+        
+        ### 📋 All Versions
+        - [Browse All API Versions](./api/index.html) - Historical documentation
+        - [Current Version v${{ steps.version.outputs.major_version }}](./api/v${{ steps.version.outputs.major_version }}/) - Latest API docs
         
         ## 🚀 Quick Start
         Deploy the cluster with Docker Compose:
