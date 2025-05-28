@@ -326,7 +326,7 @@ jobs:
         cat > docs/_config.yml << EOF
         title: "Akka Cluster API Documentation"
         description: "Public API documentation for Akka cluster deployment using Docker Swarm"
-        remote_theme: pages-themes/cayman@v0.2.0
+        remote_theme: pages-themes/architect@v0.2.0
         plugins:
           - jekyll-remote-theme
         markdown: kramdown
@@ -338,39 +338,38 @@ jobs:
         cat > docs/index.md << EOF
         ---
         layout: default
-        title: Akka Cluster Docker Swarm
         ---
         
-        # 🎭 Akka Cluster Docker Swarm
+        ## 📚 Message Protocol API
         
-        Distributed Akka cluster deployment using Docker Swarm with automated scaling and service discovery.
+        **Scala API Documentation** - Actor message protocols and service keys
+        [Browse Scaladoc](./api/v${{ steps.version.outputs.major_version }}/index.html)
         
-        ## 📚 API Documentation
-        Complete public API documentation with versioning support.
+        ## 🐳 Deployment API  
         
-        ### 📨 Message Protocol API
-        - [Scala API Documentation](./api/v${{ steps.version.outputs.major_version }}/scala/) - Actor message protocols and service keys
-        - [Browse Scaladoc](./api/v${{ steps.version.outputs.major_version }}/index.html) - Complete API reference
+        **Docker Compose Interface** - Service configuration and networking
+        [View Configuration](./api/v${{ steps.version.outputs.major_version }}/docker/deployment-api.html)
         
-        ### 🐳 Deployment API  
-        - [Docker Compose Interface](./api/v${{ steps.version.outputs.major_version }}/docker/) - Service configuration and networking
-        - [Deployment Configuration](./api/v${{ steps.version.outputs.major_version }}/docker/deployment-api.html) - Detailed service definitions
+        There should be whitespace between paragraphs. The deployment API defines the public interface for Docker Swarm cluster setup.
         
-        ### 📋 All Versions
-        - [Browse All API Versions](./api/index.html) - Historical documentation
-        - [Current Version v${{ steps.version.outputs.major_version }}](./api/v${{ steps.version.outputs.major_version }}/) - Latest API docs
+        ### Quick Start
         
-        ## 🚀 Quick Start
-        Deploy the cluster with Docker Compose:
+        This is a normal paragraph following a header. Deploy the cluster with Docker Compose:
+        
         \`\`\`bash
         git clone https://github.com/brunoesposito2/DockerSwarmAkka.git
         cd DockerSwarmAkka
         docker-compose up -d
         \`\`\`
         
-        ## 🔗 Links
-        - [GitHub Repository](https://github.com/brunoesposito2/DockerSwarmAkka)
-        - [Releases](https://github.com/brunoesposito2/DockerSwarmAkka/releases)
+        ### API Versions
+        
+        > Browse all available API versions and migration guides.
+        > 
+        > When upgrading between major versions, review breaking changes carefully.
+        
+        - [All API Versions](./api/index.html) - Historical documentation
+        - [Current Version v${{ steps.version.outputs.major_version }}](./api/v${{ steps.version.outputs.major_version }}/) - Latest API docs
         EOF
 
     - name: Setup Ruby
