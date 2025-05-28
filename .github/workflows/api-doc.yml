@@ -168,7 +168,7 @@ jobs:
       run: |
         cat > docs/api/v${{ steps.version.outputs.major_version }}/docker/index.md << EOF
         ---
-        layout: page
+        layout: default
         title: Docker Compose API v${{ steps.version.outputs.major_version }}
         ---
         
@@ -323,7 +323,7 @@ jobs:
         
     - name: Create Jekyll config
       run: |
-        cat > docs/_config.yml << EOF
+        cat > _config.yml << EOF
         title: "Akka Cluster API Documentation"
         description: "Public API documentation for Akka cluster deployment using Docker Swarm"
         remote_theme: pages-themes/architect@v0.2.0
@@ -384,6 +384,7 @@ jobs:
         source "https://rubygems.org"
         gem "github-pages", group: :jekyll_plugins
         gem "jekyll-feed"
+        gem "jekyll-remote-theme"
         EOF
 
     - name: Install dependencies
