@@ -25,6 +25,9 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v3
         
     - name: Set up JDK 17
       uses: actions/setup-java@v3
@@ -272,6 +275,17 @@ jobs:
         Generated automatically from [brunoesposito2/DockerSwarmAkka](https://github.com/brunoesposito2/DockerSwarmAkka) releases.
         EOF
         
+    - name: Create Jekyll config
+      run: |
+        cat > docs/_config.yml << EOF
+        title: "Akka Cluster API Documentation"
+        theme: minima
+        markdown: kramdown
+        highlighter: rouge
+        plugins:
+          - jekyll-feed
+        EOF
+
     - name: Create main site index
       run: |
         cat > docs/index.html << EOF
