@@ -313,7 +313,7 @@ jobs:
         rm extract-swagger.js
         
         # Crea anche una versione compatibile Swagger 2.0
-        npm install api-spec-converter
+        npm install -g api-spec-converter
         api-spec-converter --from=openapi_3 --to=swagger_2 --syntax=json \
           api/v${{ steps.version.outputs.major_version }}/rest/openapi.json > \
           api/v${{ steps.version.outputs.major_version }}/rest/swagger.json
