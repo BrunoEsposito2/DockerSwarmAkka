@@ -320,18 +320,6 @@ jobs:
         
         Generated automatically from [brunoesposito2/DockerSwarmAkka](https://github.com/brunoesposito2/DockerSwarmAkka) releases.
         EOF
-        
-    - name: Create Jekyll config
-      run: |
-        cat > _config.yml << EOF
-        title: "Akka Cluster API Documentation"
-        description: "Public API documentation for Akka cluster deployment using Docker Swarm"
-        theme: jekyll-theme-architect
-        plugins:
-          - jekyll-feed
-        markdown: kramdown
-        highlighter: rouge
-        EOF
 
     - name: Create main site index
       run: |
