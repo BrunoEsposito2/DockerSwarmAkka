@@ -6,112 +6,92 @@ title: Scala API v0
 # Scala API Documentation v0
 
 **Version:** 0.0.10  
-**Generated:** 2025-05-29 15:08:22 UTC
+**Generated:** 2025-05-29 15:27:44 UTC
 
-## Documentation Overview
+## Node Documentation
 
-This section contains the complete Scala API documentation for the Akka cluster project, organized by node implementation.
+Complete Scala API documentation for both cluster nodes:
 
-## Available Documentation
+### 🔧 [Node1 Documentation](./node1/)
+- **Role**: Primary cluster node (Ping service provider)
+- **Port**: 2555
+- **Responsibilities**: Cluster coordination, ping initiation
+- **Status**: ✅ Documentation available
 
-### 📦 Shared Public API
-- [**Public API Documentation**](./shared/) - Common interfaces and protocols
-  - Message protocol definitions (Ping, Pong)
-  - Service discovery keys (PingServiceKey, PongServiceKey)
-  - Shared interfaces used by both nodes
+### 🔧 [Node2 Documentation](./node2/)
+- **Role**: Secondary cluster node (Pong service provider)
+- **Port**: 2551  
+- **Responsibilities**: Message response, worker services
+- **Status**: ✅ Documentation available
 
-### 🔧 Node-Specific Implementations
-- [**Node1 Documentation**](./node1/) - Primary cluster node implementation
-  - Worker1 actor implementation
-  - Node1-specific configuration and behavior
-  - Ping service implementation
-- [**Node2 Documentation**](./node2/) - Secondary cluster node implementation
-  - Worker2 actor implementation
-  - Node2-specific configuration and behavior
-  - Pong service implementation
+## Public API Overview
 
-## Public API Packages
+Both nodes share the same public API packages:
 
-The following packages are part of the **stable public API**:
-
-- **org.example.api.protocol** - Message protocol definitions
-- **org.example.api.discovery** - Service discovery keys
+- **org.example.api.protocol** - Message protocol definitions (Ping, Pong)
+- **org.example.api.discovery** - Service discovery keys (PingServiceKey, PongServiceKey)
 
 ## Key Components
 
 ### Message Protocol
 ```scala
-// Base message trait
 trait Message
 
-// Ping-Pong protocol
 case class Ping(replyTo: ActorRef[Pong]) extends Message
 case class Pong(replyTo: ActorRef[Ping]) extends Message
 ```
 
 ### Service Discovery
 ```scala
-// Service keys for actor registration
 val PingServiceKey: ServiceKey[Message] = ServiceKey[Message]("pingService")
 val PongServiceKey: ServiceKey[Message] = ServiceKey[Message]("pongService")
 ```
 
-## Architecture Overview
-
-### Node1 (Primary)
-- **Role**: Ping service provider
-- **Port**: 2555
-- **Responsibility**: Initiates ping-pong cycles and manages primary cluster coordination
-
-### Node2 (Secondary)  
-- **Role**: Pong service provider
-- **Port**: 2551
-- **Responsibility**: Responds to ping messages and provides secondary cluster services
-
 ## Usage Examples
 
-### Registering a Service
+### Registering Services
 ```scala
 import org.example.api.discovery.ServiceKeys
 import akka.actor.typed.receptionist.Receptionist
 
-// Register ping service (Node1)
+// Node1: Register ping service
 context.system.receptionist ! Receptionist.Register(
-  ServiceKeys.PingServiceKey, 
-  context.self
+  ServiceKeys.PingServiceKey, context.self
 )
 
-// Register pong service (Node2)
+// Node2: Register pong service  
 context.system.receptionist ! Receptionist.Register(
-  ServiceKeys.PongServiceKey, 
-  context.self
+  ServiceKeys.PongServiceKey, context.self
 )
 ```
 
-### Discovering and Using Services
+### Message Exchange
 ```scala
 import org.example.api.protocol.{Ping, Pong}
 
-// Node1: Send a ping message
+// Node1: Send ping
 pongService ! Ping(context.self)
 
-// Node2: Handle ping and respond with pong
+// Node2: Handle ping, send pong
 case Ping(replyTo) =>
   println("Ping received")
   replyTo ! Pong(context.self)
 
-// Node1: Handle pong response
+// Node1: Handle pong
 case Pong(replyTo) =>
-  println("Pong received")
+  println("Pong received")  
   replyTo ! Ping(context.self)
 ```
 
-## Navigation Tips
+## Architecture
 
-- **For API Users**: Start with [Shared Public API](./shared/) documentation
-- **For Implementers**: Review both [Node1](./node1/) and [Node2](./node2/) specific docs
-- **For Migration**: Check version-specific changes in each node's documentation
+```
+Node1 (Primary)     ←→     Node2 (Secondary)
+Port: 2555                 Port: 2551
+Service: Ping             Service: Pong
+Role: Coordinator         Role: Worker
+```
 
 ---
 
-*This documentation is automatically generated from the source code and represents both the stable public API and node-specific implementations.*
+*Browse the individual node documentation above for complete API reference and implementation details.*
