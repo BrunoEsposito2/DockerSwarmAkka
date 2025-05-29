@@ -6,7 +6,7 @@ title: API Documentation v0
 # Public API Documentation v0
 
 **Current Version:** 0.0.10  
-**Generated:** 2025-05-29 15:27:44 UTC
+**Generated:** 2025-05-29 22:04:16 UTC
 
 ## 📨 Message Protocol API
 
@@ -18,12 +18,19 @@ title: API Documentation v0
 
 - [**Docker Compose Interface**](./docker/) - Service configuration and networking
 
+## 🌐 REST API
+
+- [**HTTP REST API Guide**](./rest/api-guide.html) - Camera management and monitoring endpoints
+  - [Interactive Swagger UI](./rest/index.html) - Test API endpoints directly
+  - [OpenAPI 3.0 Specification](./rest/openapi.json) - Latest OpenAPI spec
+  - [Swagger 2.0 Specification](./rest/swagger.json) - Legacy Swagger spec
+
 ## 🏗️ Architecture Overview
 
 | Node | Role | Port | Service | Documentation |
 |------|------|------|---------|---------------|
-| **Node1** | Primary | 2555 | Ping | [View Docs](./scala/node1/) |
-| **Node2** | Secondary | 2551 | Pong | [View Docs](./scala/node2/) |
+| **Node1** | Primary | 2555, 4000 | Ping + REST | [Scala](./scala/node1/) \| [REST](./rest/api-guide.html) |
+| **Node2** | Secondary | 2551, 4000 | Pong + REST | [Scala](./scala/node2/) \| [REST](./rest/api-guide.html) |
 
 ## 🔄 Version History
 

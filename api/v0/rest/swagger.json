@@ -1,0 +1,20 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "contact": {
+      "name": "Akka Cluster Project",
+      "url": "https://github.com/brunoesposito2/DockerSwarmAkka"
+    },
+    "description": "REST API for camera management in the Akka cluster system",
+    "title": "Akka Cluster Camera Management API",
+    "version": "0.0.10"
+  },
+  "host": "localhost:4000",
+  "basePath": "/",
+  "schemes": [
+    "http"
+  ],
+  "paths": {},
+  "tags": [],
+  "x-components": {}
+}

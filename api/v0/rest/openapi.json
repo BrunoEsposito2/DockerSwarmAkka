@@ -1,0 +1,21 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Akka Cluster Camera Management API",
+    "version": "0.0.10",
+    "description": "REST API for camera management in the Akka cluster system",
+    "contact": {
+      "name": "Akka Cluster Project",
+      "url": "https://github.com/brunoesposito2/DockerSwarmAkka"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4000",
+      "description": "Development server"
+    }
+  ],
+  "paths": {},
+  "components": {},
+  "tags": []
+}
