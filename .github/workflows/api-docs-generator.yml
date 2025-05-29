@@ -232,7 +232,7 @@ jobs:
         echo "Generating Swagger documentation using existing tools..."
         
         # Install swagger tools
-        npm install -g swagger-jsdoc swagger-ui-dist @apidevtools/swagger-parser
+        npm install swagger-jsdoc swagger-ui-dist @apidevtools/swagger-parser
         
         # Create REST API documentation directory
         mkdir -p api/v${{ steps.version.outputs.major_version }}/rest
