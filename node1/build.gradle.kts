@@ -46,6 +46,11 @@ dependencies {
     /* for logging */
     implementation("org.slf4j:slf4j-api:2.0.7")
     implementation("org.slf4j:slf4j-jdk14:2.0.7") 
+
+    implementation("io.vertx:vertx-core:4.4.4")
+    implementation("io.vertx:vertx-web:4.4.4")
+    implementation("io.swagger.core.v3:swagger-annotations:2.2.15")
+    implementation("javax.ws.rs:javax.ws.rs-api:2.1.1")
 }
 
 tasks {

@@ -51,6 +51,7 @@ jobs:
         # Crea la struttura per la documentazione API
         mkdir -p api/v${{ steps.version.outputs.major_version }}/scala
         mkdir -p api/v${{ steps.version.outputs.major_version }}/docker
+        mkdir -p api/v${{ steps.version.outputs.major_version }}/rest
 
     - name: Generate Scaladoc
       run: |
@@ -225,7 +226,145 @@ jobs:
         echo "📚 Scaladoc generation completed:"
         echo "  - Node1: $( [ "$NODE1_GENERATED" = true ] && echo "✅ Success" || echo "❌ Failed" )"
         echo "  - Node2: $( [ "$NODE2_GENERATED" = true ] && echo "✅ Success" || echo "❌ Failed" )"
-    
+
+    - name: Generate Swagger Documentation with Ready Tools
+      run: |
+        echo "Generating Swagger documentation using existing tools..."
+        
+        # Install swagger tools
+        npm install -g swagger-jsdoc swagger-ui-dist @apidevtools/swagger-parser
+        
+        # Create REST API documentation directory
+        mkdir -p api/v${{ steps.version.outputs.major_version }}/rest
+        
+        # Extract Swagger annotations using swagger-jsdoc
+        echo "Scanning source files for Swagger annotations..."
+        
+        cat > extract-swagger.js << 'EOF'
+        const swaggerJSDoc = require('swagger-jsdoc');
+        const fs = require('fs');
+        const path = require('path');
+        
+        // Configurazione per swagger-jsdoc
+        const options = {
+          definition: {
+            openapi: '3.0.0',
+            info: {
+              title: 'Akka Cluster Camera Management API',
+              version: process.env.API_VERSION || '1.0.0',
+              description: 'REST API for camera management in the Akka cluster system',
+              contact: {
+                name: 'Akka Cluster Project',
+                url: 'https://github.com/brunoesposito2/DockerSwarmAkka'
+              }
+            },
+            servers: [
+              {
+                url: 'http://localhost:4000',
+                description: 'Development server'
+              }
+            ]
+          },
+          apis: ['./node*/src/main/scala/org/example/rest/VertxRouter.scala'], // Path al file Scala con le annotazioni Swagger
+        };
+        
+        // Genera la specifica
+        const specs = swaggerJSDoc(options);
+        
+        // Salva la specifica
+        fs.writeFileSync('./api/v' + process.env.MAJOR_VERSION + '/rest/openapi.json', JSON.stringify(specs, null, 2));
+        console.log('✅ OpenAPI specification generated');
+        EOF
+        
+        # Esegui l'estrazione
+        export API_VERSION=${{ steps.version.outputs.version }}
+        export MAJOR_VERSION=${{ steps.version.outputs.major_version }}
+        node extract-swagger.js
+        
+        # Genera Swagger UI usando swagger-ui-dist
+        echo "Generating Swagger UI..."
+        
+        # Crea la struttura Swagger UI
+        cp -r $(npm root -g)/swagger-ui-dist/* api/v${{ steps.version.outputs.major_version }}/rest/
+        
+        # Configura Swagger UI per usare la nostra API
+        cat > api/v${{ steps.version.outputs.major_version }}/rest/swagger-initializer.js << 'EOF'
+        window.onload = function() {
+          window.ui = SwaggerUIBundle({
+            url: './openapi.json',
+            dom_id: '#swagger-ui',
+            deepLinking: true,
+            presets: [
+              SwaggerUIBundle.presets.apis,
+              SwaggerUIStandalonePreset
+            ],
+            plugins: [
+              SwaggerUIBundle.plugins.DownloadUrl
+            ],
+            layout: "StandaloneLayout"
+          });
+        };
+        EOF
+        
+        # Aggiorna il titolo
+        sed -i 's/<title>Swagger UI<\/title>/<title>Akka Cluster Camera API v${{ steps.version.outputs.version }}<\/title>/' api/v${{ steps.version.outputs.major_version }}/rest/index.html
+        
+        # Pulisci
+        rm extract-swagger.js
+        
+        # Crea anche una versione compatibile Swagger 2.0
+        npm install -g api-spec-converter
+        api-spec-converter --from=openapi_3 --to=swagger_2 --syntax=json \
+          api/v${{ steps.version.outputs.major_version }}/rest/openapi.json > \
+          api/v${{ steps.version.outputs.major_version }}/rest/swagger.json
+        
+        # Crea la guida API
+        cat > api/v${{ steps.version.outputs.major_version }}/rest/api-guide.md << EOF
+        ---
+        layout: default
+        title: REST API Guide v${{ steps.version.outputs.major_version }}
+        ---
+        
+        # REST API Documentation v${{ steps.version.outputs.major_version }}
+        
+        **Version:** ${{ steps.version.outputs.version }}  
+        **Generated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        
+        ## Interactive Documentation
+        
+        - [**Swagger UI Interface**](./index.html) - Interactive API documentation
+        - [**Download OpenAPI 3.0 Spec**](./openapi.json) - Latest OpenAPI specification  
+        - [**Download Swagger 2.0 Spec**](./swagger.json) - Legacy Swagger specification
+        
+        ## Quick Links
+        
+        - 🚀 [**Test API Live**](./index.html) - Try endpoints directly in browser
+        - 📋 [**API Reference**](./index.html#/operations-tag-Camera_Management) - Complete endpoint list
+        - 🔍 [**Status Monitoring**](./index.html#/operations-tag-Monitoring) - System health endpoints
+        
+        ## API Overview
+        
+        The Akka Cluster Camera Management REST API provides HTTP endpoints for:
+        
+        - **Camera Management**: Switch between available cameras
+        - **Detection Configuration**: Set detection window coordinates  
+        - **System Monitoring**: Real-time status and detection data
+        
+        ## Base URLs
+        
+        | Environment | URL | Description |
+        |-------------|-----|-------------|
+        | **Development** | http://localhost:4000 | Local development server |
+        | **Node1 (Primary)** | http://worker1:4000 | Production primary node |
+        | **Node2 (Secondary)** | http://worker2:4000 | Production secondary node |
+        
+        ---
+        
+        *For complete interactive testing, use the [Swagger UI interface](./index.html) above.*
+        EOF
+        
+        echo "✅ Swagger documentation generated using standard tools"
+
     - name: Extract Docker API Documentation
       run: |
         # Install yq for YAML parsing
@@ -379,13 +518,20 @@ jobs:
         ## 🐳 Deployment API
         
         - [**Docker Compose Interface**](./docker/) - Service configuration and networking
+
+        ## 🌐 REST API
+
+        - [**HTTP REST API Guide**](./rest/api-guide.html) - Camera management and monitoring endpoints
+          - [Interactive Swagger UI](./rest/index.html) - Test API endpoints directly
+          - [OpenAPI 3.0 Specification](./rest/openapi.json) - Latest OpenAPI spec
+          - [Swagger 2.0 Specification](./rest/swagger.json) - Legacy Swagger spec
         
         ## 🏗️ Architecture Overview
         
         | Node | Role | Port | Service | Documentation |
         |------|------|------|---------|---------------|
-        | **Node1** | Primary | 2555 | Ping | [View Docs](./scala/node1/) |
-        | **Node2** | Secondary | 2551 | Pong | [View Docs](./scala/node2/) |
+        | **Node1** | Primary | 2555, 4000 | Ping + REST | [Scala](./scala/node1/) \| [REST](./rest/api-guide.html) |
+        | **Node2** | Secondary | 2551, 4000 | Pong + REST | [Scala](./scala/node2/) \| [REST](./rest/api-guide.html) |
         
         ## 🔄 Version History
         
@@ -543,11 +689,15 @@ jobs:
         # Check which Scaladoc was generated
         NODE1_STATUS="❌"
         NODE2_STATUS="❌"
+        REST_STATUS="❌" 
         if [ -d "api/v${{ steps.version.outputs.major_version }}/scala/node1" ] && [ "$(ls -A api/v${{ steps.version.outputs.major_version }}/scala/node1 2>/dev/null)" ]; then
           NODE1_STATUS="✅"
         fi
         if [ -d "api/v${{ steps.version.outputs.major_version }}/scala/node2" ] && [ "$(ls -A api/v${{ steps.version.outputs.major_version }}/scala/node2 2>/dev/null)" ]; then
           NODE2_STATUS="✅"
+        fi
+        if [ -f "api/v${{ steps.version.outputs.major_version }}/rest/index.html" ]; then  # ← AGGIUNGI QUESTE RIGHE
+          REST_STATUS="✅"
         fi
         
         echo "- $NODE1_STATUS **Node1 Scaladoc** - Primary cluster node (Ping service)" >> $GITHUB_STEP_SUMMARY
@@ -563,9 +713,12 @@ jobs:
         echo "- **Node1 Scaladoc**: https://brunoesposito2.github.io/DockerSwarmAkka/api/v${{ steps.version.outputs.major_version }}/scala/node1/" >> $GITHUB_STEP_SUMMARY
         echo "- **Node2 Scaladoc**: https://brunoesposito2.github.io/DockerSwarmAkka/api/v${{ steps.version.outputs.major_version }}/scala/node2/" >> $GITHUB_STEP_SUMMARY
         echo "- **Docker API**: https://brunoesposito2.github.io/DockerSwarmAkka/api/v${{ steps.version.outputs.major_version }}/docker/" >> $GITHUB_STEP_SUMMARY
+        echo "- **REST API Guide**: https://brunoesposito2.github.io/DockerSwarmAkka/api/v${{ steps.version.outputs.major_version }}/rest/api-guide.html" >> $GITHUB_STEP_SUMMARY
+        echo "- **Swagger UI**: https://brunoesposito2.github.io/DockerSwarmAkka/api/v${{ steps.version.outputs.major_version }}/rest/index.html" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📊 Generation Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- **Node1**: $( [ "$NODE1_STATUS" = "✅" ] && echo "Successfully generated" || echo "Generation failed" )" >> $GITHUB_STEP_SUMMARY
-        echo "- **Node2**: $( [ "$NODE2_STATUS" = "✅" ] && echo "Successfully generated" || echo "Generation failed" )" >> $GITHUB_STEP_SUMMARY
+        echo "- $NODE1_STATUS **Node1 Scaladoc** - Primary cluster node (Ping service + HTTP API)" >> $GITHUB_STEP_SUMMARY 
+        echo "- $NODE2_STATUS **Node2 Scaladoc** - Secondary cluster node (Pong service + HTTP API)" >> $GITHUB_STEP_SUMMARY 
+        echo "- $REST_STATUS **REST API Documentation** - Interactive Swagger UI documentation" >> $GITHUB_STEP_SUMMARY  
         echo "- **Docker API**: Essential configuration only" >> $GITHUB_STEP_SUMMARY
         echo "- **Structure**: Simple dual-node documentation" >> $GITHUB_STEP_SUMMARY
