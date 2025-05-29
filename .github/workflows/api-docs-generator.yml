@@ -52,7 +52,7 @@ jobs:
         mkdir -p api/v${{ steps.version.outputs.major_version }}/scala
         mkdir -p api/v${{ steps.version.outputs.major_version }}/docker
 
-    - name: Generate Scaladoc for Both Nodes
+    - name: Generate Scaladoc
       run: |
         echo "Generating Scaladoc for both Node1 and Node2..."
         
@@ -62,7 +62,6 @@ jobs:
         # Setup directory structure for both nodes
         mkdir -p api/v${{ steps.version.outputs.major_version }}/scala/node1
         mkdir -p api/v${{ steps.version.outputs.major_version }}/scala/node2
-        mkdir -p api/v${{ steps.version.outputs.major_version }}/scala/shared
         
         # Track generation status
         NODE1_GENERATED=false
@@ -75,6 +74,9 @@ jobs:
           NODE1_GENERATED=true
         else
           echo "⚠️ Scaladoc not generated for Node1"
+          # Create placeholder
+          mkdir -p api/v${{ steps.version.outputs.major_version }}/scala/node1
+          echo "<html><body><h1>Node1 Documentation</h1><p>Generation failed for version ${{ steps.version.outputs.version }}</p></body></html>" > api/v${{ steps.version.outputs.major_version }}/scala/node1/index.html
         fi
         
         # Copy Node2 Scaladoc
@@ -84,15 +86,9 @@ jobs:
           NODE2_GENERATED=true
         else
           echo "⚠️ Scaladoc not generated for Node2"
-        fi
-        
-        # Create shared API documentation (using Node1 as reference for public API)
-        if [ "$NODE1_GENERATED" = true ]; then
-          echo "📚 Creating shared API documentation from Node1"
-          cp -r node1/build/docs/scaladoc/* api/v${{ steps.version.outputs.major_version }}/scala/shared/
-        elif [ "$NODE2_GENERATED" = true ]; then
-          echo "📚 Creating shared API documentation from Node2"
-          cp -r node2/build/docs/scaladoc/* api/v${{ steps.version.outputs.major_version }}/scala/shared/
+          # Create placeholder
+          mkdir -p api/v${{ steps.version.outputs.major_version }}/scala/node2
+          echo "<html><body><h1>Node2 Documentation</h1><p>Generation failed for version ${{ steps.version.outputs.version }}</p></body></html>" > api/v${{ steps.version.outputs.major_version }}/scala/node2/index.html
         fi
         
         # Create main Scala API index page
@@ -107,246 +103,129 @@ jobs:
         **Version:** ${{ steps.version.outputs.version }}  
         **Generated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
         
-        ## Documentation Overview
+        ## Node Documentation
         
-        This section contains the complete Scala API documentation for the Akka cluster project, organized by node implementation.
+        Complete Scala API documentation for both cluster nodes:
         
-        ## Available Documentation
-        
-        ### 📦 Shared Public API
-        - [**Public API Documentation**](./shared/) - Common interfaces and protocols
-          - Message protocol definitions (Ping, Pong)
-          - Service discovery keys (PingServiceKey, PongServiceKey)
-          - Shared interfaces used by both nodes
-        
-        ### 🔧 Node-Specific Implementations
         EOF
         
         if [ "$NODE1_GENERATED" = true ]; then
           cat >> api/v${{ steps.version.outputs.major_version }}/scala/index.md << EOF
-        - [**Node1 Documentation**](./node1/) - Primary cluster node implementation
-          - Worker1 actor implementation
-          - Node1-specific configuration and behavior
-          - Ping service implementation
+        ### 🔧 [Node1 Documentation](./node1/)
+        - **Role**: Primary cluster node (Ping service provider)
+        - **Port**: 2555
+        - **Responsibilities**: Cluster coordination, ping initiation
+        - **Status**: ✅ Documentation available
+        
         EOF
         else
           cat >> api/v${{ steps.version.outputs.major_version }}/scala/index.md << EOF
-        - **Node1 Documentation** - ⚠️ Generation failed
+        ### 🔧 Node1 Documentation
+        - **Role**: Primary cluster node (Ping service provider)  
+        - **Port**: 2555
+        - **Status**: ❌ Documentation generation failed
+        
         EOF
         fi
         
         if [ "$NODE2_GENERATED" = true ]; then
           cat >> api/v${{ steps.version.outputs.major_version }}/scala/index.md << EOF
-        - [**Node2 Documentation**](./node2/) - Secondary cluster node implementation
-          - Worker2 actor implementation
-          - Node2-specific configuration and behavior
-          - Pong service implementation
+        ### 🔧 [Node2 Documentation](./node2/)
+        - **Role**: Secondary cluster node (Pong service provider)
+        - **Port**: 2551  
+        - **Responsibilities**: Message response, worker services
+        - **Status**: ✅ Documentation available
+        
         EOF
         else
           cat >> api/v${{ steps.version.outputs.major_version }}/scala/index.md << EOF
-        - **Node2 Documentation** - ⚠️ Generation failed
+        ### 🔧 Node2 Documentation
+        - **Role**: Secondary cluster node (Pong service provider)
+        - **Port**: 2551
+        - **Status**: ❌ Documentation generation failed
+        
         EOF
         fi
         
         cat >> api/v${{ steps.version.outputs.major_version }}/scala/index.md << EOF
+        ## Public API Overview
         
-        ## Public API Packages
+        Both nodes share the same public API packages:
         
-        The following packages are part of the **stable public API**:
-        
-        - **org.example.api.protocol** - Message protocol definitions
-        - **org.example.api.discovery** - Service discovery keys
+        - **org.example.api.protocol** - Message protocol definitions (Ping, Pong)
+        - **org.example.api.discovery** - Service discovery keys (PingServiceKey, PongServiceKey)
         
         ## Key Components
         
         ### Message Protocol
         \`\`\`scala
-        // Base message trait
         trait Message
         
-        // Ping-Pong protocol
         case class Ping(replyTo: ActorRef[Pong]) extends Message
         case class Pong(replyTo: ActorRef[Ping]) extends Message
         \`\`\`
         
         ### Service Discovery
         \`\`\`scala
-        // Service keys for actor registration
         val PingServiceKey: ServiceKey[Message] = ServiceKey[Message]("pingService")
         val PongServiceKey: ServiceKey[Message] = ServiceKey[Message]("pongService")
         \`\`\`
         
-        ## Architecture Overview
-        
-        ### Node1 (Primary)
-        - **Role**: Ping service provider
-        - **Port**: 2555
-        - **Responsibility**: Initiates ping-pong cycles and manages primary cluster coordination
-        
-        ### Node2 (Secondary)  
-        - **Role**: Pong service provider
-        - **Port**: 2551
-        - **Responsibility**: Responds to ping messages and provides secondary cluster services
-        
         ## Usage Examples
         
-        ### Registering a Service
+        ### Registering Services
         \`\`\`scala
         import org.example.api.discovery.ServiceKeys
         import akka.actor.typed.receptionist.Receptionist
         
-        // Register ping service (Node1)
+        // Node1: Register ping service
         context.system.receptionist ! Receptionist.Register(
-          ServiceKeys.PingServiceKey, 
-          context.self
+          ServiceKeys.PingServiceKey, context.self
         )
         
-        // Register pong service (Node2)
+        // Node2: Register pong service  
         context.system.receptionist ! Receptionist.Register(
-          ServiceKeys.PongServiceKey, 
-          context.self
+          ServiceKeys.PongServiceKey, context.self
         )
         \`\`\`
         
-        ### Discovering and Using Services
+        ### Message Exchange
         \`\`\`scala
         import org.example.api.protocol.{Ping, Pong}
         
-        // Node1: Send a ping message
+        // Node1: Send ping
         pongService ! Ping(context.self)
         
-        // Node2: Handle ping and respond with pong
+        // Node2: Handle ping, send pong
         case Ping(replyTo) =>
           println("Ping received")
           replyTo ! Pong(context.self)
         
-        // Node1: Handle pong response
+        // Node1: Handle pong
         case Pong(replyTo) =>
-          println("Pong received")
+          println("Pong received")  
           replyTo ! Ping(context.self)
         \`\`\`
         
-        ## Navigation Tips
+        ## Architecture
         
-        - **For API Users**: Start with [Shared Public API](./shared/) documentation
-        - **For Implementers**: Review both [Node1](./node1/) and [Node2](./node2/) specific docs
-        - **For Migration**: Check version-specific changes in each node's documentation
+        \`\`\`
+        Node1 (Primary)     ←→     Node2 (Secondary)
+        Port: 2555                 Port: 2551
+        Service: Ping             Service: Pong
+        Role: Coordinator         Role: Worker
+        \`\`\`
         
         ---
         
-        *This documentation is automatically generated from the source code and represents both the stable public API and node-specific implementations.*
+        *Browse the individual node documentation above for complete API reference and implementation details.*
         EOF
-        
-        # Create individual index pages for each node
-        if [ "$NODE1_GENERATED" = true ]; then
-          cat > api/v${{ steps.version.outputs.major_version }}/scala/node1/README.md << EOF
-        # Node1 (Primary) - Scala API Documentation
-        
-        **Version:** ${{ steps.version.outputs.version }}  
-        **Node Role:** Primary cluster node (Ping service provider)  
-        **Port:** 2555
-        
-        ## Overview
-        
-        This documentation covers the Node1-specific implementation of the Akka cluster.
-        Node1 serves as the primary cluster node and implements the Ping service.
-        
-        ## Key Files
-        
-        - **App.scala** - Main application and cluster coordination
-        - **WorkerTwo.scala** - Primary worker actor implementation
-        - **Public API** - Shared message protocol and service keys
-        
-        ## Browse Documentation
-        
-        - [Browse Scaladoc](./index.html) - Complete Node1 API reference
-        - [Package Index](./package.html) - Package overview
-        - [Back to Overview](../index.html) - Return to main Scala API docs
-        
-        ## Node1 Responsibilities
-        
-        - Initialize Docker Swarm as manager node
-        - Provide Ping service to the cluster
-        - Coordinate cluster formation and management
-        - Handle primary actor system configuration
-        EOF
-        fi
-        
-        if [ "$NODE2_GENERATED" = true ]; then
-          cat > api/v${{ steps.version.outputs.major_version }}/scala/node2/README.md << EOF
-        # Node2 (Secondary) - Scala API Documentation
-        
-        **Version:** ${{ steps.version.outputs.version }}  
-        **Node Role:** Secondary cluster node (Pong service provider)  
-        **Port:** 2551
-        
-        ## Overview
-        
-        This documentation covers the Node2-specific implementation of the Akka cluster.
-        Node2 serves as a secondary cluster node and implements the Pong service.
-        
-        ## Key Files
-        
-        - **App.scala** - Secondary node application logic
-        - **WorkerOne.scala** - Secondary worker actor implementation
-        - **Public API** - Shared message protocol and service keys
-        
-        ## Browse Documentation
-        
-        - [Browse Scaladoc](./index.html) - Complete Node2 API reference
-        - [Package Index](./package.html) - Package overview
-        - [Back to Overview](../index.html) - Return to main Scala API docs
-        
-        ## Node2 Responsibilities
-        
-        - Join Docker Swarm as worker node
-        - Provide Pong service to the cluster
-        - Respond to ping messages from Node1
-        - Handle secondary actor system configuration
-        EOF
-        fi
-        
-        # Create shared API index
-        if [ "$NODE1_GENERATED" = true ] || [ "$NODE2_GENERATED" = true ]; then
-          cat > api/v${{ steps.version.outputs.major_version }}/scala/shared/README.md << EOF
-        # Shared Public API - Scala Documentation
-        
-        **Version:** ${{ steps.version.outputs.version }}  
-        **Scope:** Public API shared between all cluster nodes
-        
-        ## Overview
-        
-        This documentation covers the **public API** that is shared between Node1 and Node2.
-        These are the stable interfaces that external applications can depend on.
-        
-        ## Public Packages
-        
-        - **org.example.api.protocol** - Message protocol definitions
-        - **org.example.api.discovery** - Service discovery keys
-        
-        ## Browse Documentation
-        
-        - [Browse Scaladoc](./index.html) - Complete public API reference
-        - [Package Index](./package.html) - Package overview
-        - [Back to Overview](../index.html) - Return to main Scala API docs
-        
-        ## API Stability
-        
-        All classes and interfaces in this documentation are part of the **public API**.
-        Changes to these interfaces follow semantic versioning:
-        
-        - **MAJOR**: Breaking changes to public interfaces
-        - **MINOR**: Backward compatible additions
-        - **PATCH**: Bug fixes and internal improvements
-        EOF
-        fi
         
         # Generate summary
         echo "📚 Scaladoc generation completed:"
         echo "  - Node1: $( [ "$NODE1_GENERATED" = true ] && echo "✅ Success" || echo "❌ Failed" )"
         echo "  - Node2: $( [ "$NODE2_GENERATED" = true ] && echo "✅ Success" || echo "❌ Failed" )"
-        echo "  - Shared API: $( [ "$NODE1_GENERATED" = true ] || [ "$NODE2_GENERATED" = true ] && echo "✅ Generated" || echo "❌ Failed" )"
-
+    
     - name: Extract Docker API Documentation
       run: |
         # Install yq for YAML parsing
@@ -494,9 +373,8 @@ jobs:
         ## 📨 Message Protocol API
         
         - [**Scala API Documentation**](./scala/) - Complete documentation for both nodes
-          - [Shared Public API](./scala/shared/) - Common interfaces and protocols
-          - [Node1 Implementation](./scala/node1/) - Primary cluster node (Ping service)
-          - [Node2 Implementation](./scala/node2/) - Secondary cluster node (Pong service)
+          - [Node1 (Primary)](./scala/node1/) - Ping service implementation
+          - [Node2 (Secondary)](./scala/node2/) - Pong service implementation
         
         ## 🐳 Deployment API
         
@@ -504,24 +382,10 @@ jobs:
         
         ## 🏗️ Architecture Overview
         
-        This project implements a distributed Akka cluster with two specialized nodes:
-        
-        ### Node Architecture
-        
-        | Node | Role | Port | Service | Responsibility |
-        |------|------|------|---------|----------------|
-        | **Node1** | Primary | 2555 | Ping | Cluster coordination, ping initiation |
-        | **Node2** | Secondary | 2551 | Pong | Message response, worker services |
-        
-        ### Communication Flow
-        
-        \`\`\`
-        Node1 (Ping Service)  ←→  Node2 (Pong Service)
-            ↓                           ↓
-        ServiceKeys.PingServiceKey  ServiceKeys.PongServiceKey
-            ↓                           ↓
-        Receptionist Registration  Receptionist Registration
-        \`\`\`
+        | Node | Role | Port | Service | Documentation |
+        |------|------|------|---------|---------------|
+        | **Node1** | Primary | 2555 | Ping | [View Docs](./scala/node1/) |
+        | **Node2** | Secondary | 2551 | Pong | [View Docs](./scala/node2/) |
         
         ## 🔄 Version History
         
@@ -546,7 +410,7 @@ jobs:
         import org.example.api.protocol.{Ping, Pong}
         import org.example.api.discovery.ServiceKeys
         
-        // Register services (both nodes)
+        // Register services
         context.system.receptionist ! Receptionist.Register(ServiceKeys.PingServiceKey, context.self)
         context.system.receptionist ! Receptionist.Register(ServiceKeys.PongServiceKey, context.self)
         
@@ -573,34 +437,19 @@ jobs:
         docker node ls
         
         # View service logs
-        docker service logs akka_worker1
-        docker service logs akka_worker2
-        
-        # Monitor ping-pong communication
         docker logs -f worker1
         docker logs -f worker2
         \`\`\`
         
         ## 📖 Documentation Guide
         
-        ### For API Users
-        1. Start with [Shared Public API](./scala/shared/) for stable interfaces
-        2. Review [Docker API](./docker/) for deployment configuration
-        3. Check version compatibility in [Migration Guide](https://github.com/brunoesposito2/DockerSwarmAkka/releases)
-        
-        ### For Implementers
-        1. Study [Node1](./scala/node1/) for primary node implementation patterns
-        2. Review [Node2](./scala/node2/) for secondary node architecture
-        3. Understand the complete flow in [Shared API](./scala/shared/)
-        
-        ### For DevOps
-        1. Configure deployment using [Docker API](./docker/) documentation
-        2. Set up monitoring based on service definitions
-        3. Plan capacity using the architecture overview above
+        - **For API Users**: Check both [Node1](./scala/node1/) and [Node2](./scala/node2/) for complete interface coverage
+        - **For Deployment**: Use [Docker API](./docker/) for service configuration
+        - **For Migration**: Review [Release Notes](https://github.com/brunoesposito2/DockerSwarmAkka/releases) for version changes
         
         ---
         
-        *This documentation is automatically generated and represents the complete API surface for version ${{ steps.version.outputs.version }}*
+        *This documentation covers the complete API surface for version ${{ steps.version.outputs.version }}*
         EOF
 
     - name: Update main API index
@@ -701,29 +550,22 @@ jobs:
           NODE2_STATUS="✅"
         fi
         
-        echo "- $NODE1_STATUS **Node1 Scaladoc** - Primary cluster node documentation" >> $GITHUB_STEP_SUMMARY
-        echo "- $NODE2_STATUS **Node2 Scaladoc** - Secondary cluster node documentation" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ **Shared API Documentation** - Public interfaces and protocols" >> $GITHUB_STEP_SUMMARY
+        echo "- $NODE1_STATUS **Node1 Scaladoc** - Primary cluster node (Ping service)" >> $GITHUB_STEP_SUMMARY
+        echo "- $NODE2_STATUS **Node2 Scaladoc** - Secondary cluster node (Pong service)" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ **Docker Compose API** - Services, ports, and networks configuration" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ **Version-specific index** - Comprehensive API overview" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ **Main API index** - Historical versions and navigation" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ **Version-specific index** - Complete API overview and navigation" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ **Main API index** - Historical versions and documentation" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 🔗 Access Documentation" >> $GITHUB_STEP_SUMMARY
         echo "- **Main Site**: https://brunoesposito2.github.io/DockerSwarmAkka/" >> $GITHUB_STEP_SUMMARY
         echo "- **API v${{ steps.version.outputs.major_version }}**: https://brunoesposito2.github.io/DockerSwarmAkka/api/v${{ steps.version.outputs.major_version }}/" >> $GITHUB_STEP_SUMMARY
-        echo "- **Node1 Docs**: https://brunoesposito2.github.io/DockerSwarmAkka/api/v${{ steps.version.outputs.major_version }}/scala/node1/" >> $GITHUB_STEP_SUMMARY
-        echo "- **Node2 Docs**: https://brunoesposito2.github.io/DockerSwarmAkka/api/v${{ steps.version.outputs.major_version }}/scala/node2/" >> $GITHUB_STEP_SUMMARY
-        echo "- **Shared API**: https://brunoesposito2.github.io/DockerSwarmAkka/api/v${{ steps.version.outputs.major_version }}/scala/shared/" >> $GITHUB_STEP_SUMMARY
+        echo "- **Scala API Overview**: https://brunoesposito2.github.io/DockerSwarmAkka/api/v${{ steps.version.outputs.major_version }}/scala/" >> $GITHUB_STEP_SUMMARY
+        echo "- **Node1 Scaladoc**: https://brunoesposito2.github.io/DockerSwarmAkka/api/v${{ steps.version.outputs.major_version }}/scala/node1/" >> $GITHUB_STEP_SUMMARY
+        echo "- **Node2 Scaladoc**: https://brunoesposito2.github.io/DockerSwarmAkka/api/v${{ steps.version.outputs.major_version }}/scala/node2/" >> $GITHUB_STEP_SUMMARY
+        echo "- **Docker API**: https://brunoesposito2.github.io/DockerSwarmAkka/api/v${{ steps.version.outputs.major_version }}/docker/" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📊 Generation Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- **Documentation Structure**: Multi-node with shared API separation" >> $GITHUB_STEP_SUMMARY
-        echo "- **Node1 (Primary)**: $( [ "$NODE1_STATUS" = "✅" ] && echo "Successfully generated" || echo "Generation failed" )" >> $GITHUB_STEP_SUMMARY
-        echo "- **Node2 (Secondary)**: $( [ "$NODE2_STATUS" = "✅" ] && echo "Successfully generated" || echo "Generation failed" )" >> $GITHUB_STEP_SUMMARY
-        echo "- **Docker API**: Essential configuration only (clean format)" >> $GITHUB_STEP_SUMMARY
-        echo "- **Format**: Structured navigation with role-based documentation" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 🎯 Next Steps" >> $GITHUB_STEP_SUMMARY
-        echo "1. Documentation committed to repository with [skip ci]" >> $GITHUB_STEP_SUMMARY
-        echo "2. Jekyll will rebuild the site automatically" >> $GITHUB_STEP_SUMMARY
-        echo "3. Both node-specific and shared API docs will be available" >> $GITHUB_STEP_SUMMARY
-        echo "4. Users can navigate between implementations and public API" >> $GITHUB_STEP_SUMMARY
+        echo "- **Node1**: $( [ "$NODE1_STATUS" = "✅" ] && echo "Successfully generated" || echo "Generation failed" )" >> $GITHUB_STEP_SUMMARY
+        echo "- **Node2**: $( [ "$NODE2_STATUS" = "✅" ] && echo "Successfully generated" || echo "Generation failed" )" >> $GITHUB_STEP_SUMMARY
+        echo "- **Docker API**: Essential configuration only" >> $GITHUB_STEP_SUMMARY
+        echo "- **Structure**: Simple dual-node documentation" >> $GITHUB_STEP_SUMMARY
