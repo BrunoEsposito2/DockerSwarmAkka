@@ -1,0 +1,99 @@
+# _config.yml - Configurazione Jekyll per GitHub Pages
+title: "Akka Cluster Docker Swarm Project"
+description: "Public API documentation for Akka cluster deployment with Docker Swarm orchestration"
+url: "https://brunoesposito2.github.io"
+baseurl: "/DockerSwarmAkka"
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+theme: jekyll-theme-architect
+
+# Plugin configuration
+plugins:
+  - jekyll-seo-tag
+  - jekyll-remote-theme
+
+# Remote theme (alternative to theme)
+remote_theme: pages-themes/architect@v0.2.0
+
+# Site settings
+show_downloads: true
+google_analytics: # Add your GA tracking ID if needed
+
+# Collections for better organization
+collections:
+  api_versions:
+    output: true
+    permalink: /api/:path/
+
+# Include directories that Jekyll normally excludes
+include:
+  - api
+  - _pages
+
+# Exclude files from Jekyll processing
+exclude:
+  - node1
+  - node2
+  - common
+  - gradle
+  - build
+  - .gradle
+  - gradlew
+  - gradlew.bat
+  - build.gradle.kts
+  - settings.gradle.kts
+  - docker-compose.yml
+  - portainer.yml
+  - docker-stack.yml
+  - deploy-akka.sh
+  - "*.jar"
+  - "*.log"
+  - vendor
+  - .bundle
+  - .sass-cache
+  - .jekyll-cache
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - npm-debug.log*
+
+# Default front matter
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+  - scope:
+      path: "api"
+    values:
+      layout: "default"
+      
+# Sass configuration
+sass:
+  sass_dir: _sass
+  style: compressed
+
+# Kramdown settings
+kramdown:
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    css_class: 'highlight'
+    span:
+      line_numbers: false
+    block:
+      line_numbers: true
+
+# SEO settings
+author:
+  name: "Bruno Esposito"
+  
+social:
+  name: "Akka Cluster Docker Swarm"
+  links:
+    - "https://github.com/brunoesposito2/DockerSwarmAkka"
+
+# GitHub repository information
+repository: "brunoesposito2/DockerSwarmAkka"
