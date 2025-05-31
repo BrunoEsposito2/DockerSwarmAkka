@@ -5,8 +5,8 @@ title: Docker Compose API v1
 
 # Docker Compose Public API v1
 
-**Version:** 1.0.2  
-**Generated:** 2025-05-31 14:26:21 UTC
+**Version:** 1.0.3  
+**Generated:** 2025-05-31 14:39:07 UTC
 
 ## API Overview
 
