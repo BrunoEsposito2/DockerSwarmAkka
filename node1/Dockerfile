@@ -1,6 +1,8 @@
 # Use OpenJDK as base
 FROM openjdk:17-jdk-alpine
 
+USER root
+
 # Install Docker and other necessary tools
 RUN apk add --no-cache \
     bash \
