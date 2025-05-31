@@ -5,10 +5,11 @@ title: API Documentation
 
 # Akka Cluster Public API Documentation
 
-**Last Updated:** 2025-05-31 13:06:07 UTC
+**Last Updated:** 2025-05-31 13:57:09 UTC
 
 ## 📚 API Versions
 
+- [v1](./v1/) - Major version 1
 - [v0](./v0/) - Major version 0
 
 ## 🎯 What's in the Public API
