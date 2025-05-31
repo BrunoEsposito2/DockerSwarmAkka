@@ -49,6 +49,8 @@ object App:
 
     settings += ("akka.remote.artery.canonical.hostname" -> "worker2")
     settings += ("akka.remote.artery.canonical.port" -> "2551")
+    settings += ("akka.remote.artery.bind.hostname" -> "0.0.0.0")
+    settings += ("akka.remote.artery.bind.port" -> "2551")
     settings += ("akka.actor.allow-java-serialization" -> "on")
     settings += ("akka.remote.artery.transport" -> "tcp")
     settings += ("akka.cluster.seed-nodes" ->
