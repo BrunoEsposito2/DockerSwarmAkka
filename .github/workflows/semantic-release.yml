@@ -40,120 +40,60 @@ jobs:
         
         # Get all commit messages since the last tag
         echo "Analyzing commits since tag $LATEST_TAG"
-        if [ "$LATEST_TAG" = "v0.0.0" ] || ! git tag | grep -q "$LATEST_TAG"; then
-          # No previous tags, analyze all commits
-          COMMITS=$(git log --pretty=format:"%s")
-          echo "📝 Analyzing all commits (no previous tags)"
-        else
-          COMMITS=$(git log $LATEST_TAG..HEAD --pretty=format:"%s")
-          echo "📝 Analyzing commits since $LATEST_TAG"
-        fi
-        
-        echo "Commits found:"
-        echo "$COMMITS"
+        COMMITS=$(git log $LATEST_TAG..HEAD --pretty=format:"%s")
+        echo "Commits found: $COMMITS"
         
         # Initialize flags
         NEED_MAJOR=false
         NEED_MINOR=false
         NEED_PATCH=false
-        HAS_BREAKING=false
         
-        # Analyze each commit
+        # Loop through each commit message
         echo "Analyzing commit types..."
         while IFS= read -r commit; do
-          [ -z "$commit" ] && continue
           echo "Analyzing: $commit"
           
-          # Check for breaking changes - FIX: Simplified regex patterns
-          if [[ $commit == *"!"*":"* ]] || [[ $commit == *"BREAKING CHANGE"* ]]; then
-            echo "  - ⚠️ Breaking change detected"
+          # Check for breaking changes (with ! or BREAKING CHANGE)
+          if [[ $commit == feat!:* || $commit == fix!:* || $commit == refactor!:* || $commit == perf!:* || $commit == *"BREAKING CHANGE"* ]]; then
+            echo "  - Breaking change detected"
             NEED_MAJOR=true
-            HAS_BREAKING=true
-          elif [[ $commit == feat:* ]] || [[ $commit == feat\(*\):* ]]; then
-            echo "  - ✨ Feature detected"
+          # Check for feature commits
+          elif [[ $commit == feat:* ]]; then
+            echo "  - Feature detected"
             NEED_MINOR=true
-          elif [[ $commit == fix:* ]] || [[ $commit == fix\(*\):* ]]; then
-            echo "  - 🐛 Fix detected"
+          # Check for fix commits
+          elif [[ $commit == fix:* ]]; then
+            echo "  - Fix detected"
             NEED_PATCH=true
-          elif [[ $commit == docs:* ]] || [[ $commit == docs\(*\):* ]] || \
-              [[ $commit == style:* ]] || [[ $commit == style\(*\):* ]] || \
-              [[ $commit == refactor:* ]] || [[ $commit == refactor\(*\):* ]] || \
-              [[ $commit == perf:* ]] || [[ $commit == perf\(*\):* ]] || \
-              [[ $commit == test:* ]] || [[ $commit == test\(*\):* ]] || \
-              [[ $commit == chore:* ]] || [[ $commit == chore\(*\):* ]] || \
-              [[ $commit == build:* ]] || [[ $commit == build\(*\):* ]] || \
-              [[ $commit == ci:* ]] || [[ $commit == ci\(*\):* ]]; then
-            echo "  - 🔧 Maintenance change detected"
-            NEED_PATCH=true
-          else
-            echo "  - ❓ Non-conventional commit (treated as patch)"
+          # Other types of commits will increment patch
+          elif [[ $commit =~ ^(docs|style|refactor|perf|test|chore): ]]; then
+            echo "  - Other conventional commit type detected"
             NEED_PATCH=true
           fi
         done <<< "$COMMITS"
         
-        # Special handling for initial development (0.x.x)
-        if [ "$MAJOR" -eq 0 ]; then
-          echo "📋 Currently in initial development phase (0.x.x)"
-          echo "::notice::API is not considered stable - SemVer rules adjusted"
-          
-          # In 0.x.x, breaking changes increment MINOR instead of MAJOR
-          if [ "$NEED_MAJOR" = true ] || [ "$NEED_MINOR" = true ]; then
-            echo "Incrementing MINOR version (breaking changes or features in 0.x.x)"
-            MINOR=$((MINOR + 1))
-            PATCH=0
-          elif [ "$NEED_PATCH" = true ]; then
-            echo "Incrementing PATCH version"
-            PATCH=$((PATCH + 1))
-          else
-            echo "No releasable changes found"
-            echo "skip_release=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          # Check if it's time to go to 1.0.0
-          if [ "$MINOR" -ge 10 ]; then
-            echo "::notice::Consider releasing version 1.0.0 to indicate API stability"
-          fi
+        # Determine the final version increment
+        if [ "$NEED_MAJOR" = true ]; then
+          echo "Breaking changes found - incrementing MAJOR version"
+          MAJOR=$((MAJOR + 1))
+          MINOR=0
+          PATCH=0
+        elif [ "$NEED_MINOR" = true ]; then
+          echo "Features found - incrementing MINOR version"
+          MINOR=$((MINOR + 1))
+          PATCH=0
+        elif [ "$NEED_PATCH" = true ]; then
+          echo "Fixes or other changes found - incrementing PATCH version"
+          PATCH=$((PATCH + 1))
         else
-          # Standard SemVer logic for stable versions (1.x.x+)
-          echo "📋 Using standard SemVer logic for stable version"
-          
-          if [ "$NEED_MAJOR" = true ]; then
-            echo "🚨 Breaking changes found - incrementing MAJOR version"
-            MAJOR=$((MAJOR + 1))
-            MINOR=0
-            PATCH=0
-          elif [ "$NEED_MINOR" = true ]; then
-            echo "✨ Features found - incrementing MINOR version"
-            MINOR=$((MINOR + 1))
-            PATCH=0
-          elif [ "$NEED_PATCH" = true ]; then
-            echo "🐛 Fixes or other changes found - incrementing PATCH version"
-            PATCH=$((PATCH + 1))
-          else
-            echo "No releasable changes found"
-            echo "skip_release=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+          echo "No conventional commits found - incrementing PATCH version as default"
+          PATCH=$((PATCH + 1))
         fi
         
         NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-        
-        # Output results
         echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
         echo "previous_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-        echo "has_breaking_changes=$HAS_BREAKING" >> $GITHUB_OUTPUT
-        echo "is_initial_development=$([ "$MAJOR" -eq 0 ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-        
-        echo "🎯 New version will be: v$NEW_VERSION"
-        
-        if [ "$HAS_BREAKING" = true ]; then
-          if [ "$MAJOR" -eq 0 ]; then
-            echo "⚠️ Breaking changes in initial development version"
-          else
-            echo "🚨 Breaking changes in stable version - MAJOR bump"
-          fi
-        fi
+        echo "New version will be: v$NEW_VERSION"
         
     - name: Create Release Notes
       if: steps.version.outputs.skip_release != 'true'
