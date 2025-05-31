@@ -227,67 +227,46 @@ jobs:
         echo "  - Node1: $( [ "$NODE1_GENERATED" = true ] && echo "✅ Success" || echo "❌ Failed" )"
         echo "  - Node2: $( [ "$NODE2_GENERATED" = true ] && echo "✅ Success" || echo "❌ Failed" )"
 
-    - name: Generate Swagger Documentation with Ready Tools
+    - name: Generate OpenAPI Documentation
       run: |
-        echo "Generating Swagger documentation using existing tools..."
+        echo "Generating OpenAPI documentation..."
         
-        # Install swagger tools
-        npm install swagger-jsdoc swagger-ui-dist @apidevtools/swagger-parser
+        # Install required tools
+        npm install --no-audit --no-fund swagger-ui-dist js-yaml
         
         # Create REST API documentation directory
         mkdir -p api/v${{ steps.version.outputs.major_version }}/rest
         
-        # Extract Swagger annotations using swagger-jsdoc
-        echo "Scanning source files for Swagger annotations..."
+        # Process the OpenAPI specification
+        OPENAPI_SOURCE="node1/src/main/scala/org/example/api/rest/api/openapi.yaml"
+        if [ -f "$OPENAPI_SOURCE" ]; then
+          echo "✅ Processing OpenAPI specification from $OPENAPI_SOURCE"
+          
+          # Update version in the spec
+          sed "s/version: \".*\"/version: \"${{ steps.version.outputs.version }}\"/" "$OPENAPI_SOURCE" > api/v${{ steps.version.outputs.major_version }}/rest/openapi.yaml
+          
+          # Convert YAML to JSON
+          node -e "
+            const yaml = require('js-yaml');
+            const fs = require('fs');
+            try {
+              const spec = yaml.load(fs.readFileSync('api/v${{ steps.version.outputs.major_version }}/rest/openapi.yaml', 'utf8'));
+              fs.writeFileSync('api/v${{ steps.version.outputs.major_version }}/rest/openapi.json', JSON.stringify(spec, null, 2));
+              console.log('✅ OpenAPI YAML converted to JSON');
+            } catch (error) {
+              console.error('❌ Error converting YAML to JSON:', error.message);
+              process.exit(1);
+            }
+          "
+        fi
         
-        cat > extract-swagger.js << 'EOF'
-        const swaggerJSDoc = require('swagger-jsdoc');
-        const fs = require('fs');
-        const path = require('path');
+        # Set up the UI with default Swagger UI
+        echo "Setting up clean OpenAPI UI..."
         
-        // Configurazione per swagger-jsdoc
-        const options = {
-          definition: {
-            openapi: '3.0.0',
-            info: {
-              title: 'Akka Cluster Camera Management API',
-              version: process.env.API_VERSION || '1.0.0',
-              description: 'REST API for camera management in the Akka cluster system',
-              contact: {
-                name: 'Akka Cluster Project',
-                url: 'https://github.com/brunoesposito2/DockerSwarmAkka'
-              }
-            },
-            servers: [
-              {
-                url: 'http://localhost:4000',
-                description: 'Development server'
-              }
-            ]
-          },
-          apis: ['./node*/src/main/scala/org/example/api/rest/VertxRouter.scala'], // Path al file Scala con le annotazioni Swagger
-        };
-        
-        // Genera la specifica
-        const specs = swaggerJSDoc(options);
-        
-        // Salva la specifica
-        fs.writeFileSync('./api/v' + process.env.MAJOR_VERSION + '/rest/openapi.json', JSON.stringify(specs, null, 2));
-        console.log('✅ OpenAPI specification generated');
-        EOF
-        
-        # Esegui l'estrazione
-        export API_VERSION=${{ steps.version.outputs.version }}
-        export MAJOR_VERSION=${{ steps.version.outputs.major_version }}
-        node extract-swagger.js
-        
-        # Genera Swagger UI usando swagger-ui-dist
-        echo "Generating Swagger UI..."
-        
-        # Crea la struttura Swagger UI
+        # Copy all Swagger UI files
         cp -r node_modules/swagger-ui-dist/* api/v${{ steps.version.outputs.major_version }}/rest/
         
-        # Configura Swagger UI per usare la nostra API
+        # Simple configuration to load our spec
         cat > api/v${{ steps.version.outputs.major_version }}/rest/swagger-initializer.js << 'EOF'
         window.onload = function() {
           window.ui = SwaggerUIBundle({
@@ -306,64 +285,63 @@ jobs:
         };
         EOF
         
-        # Aggiorna il titolo
-        sed -i 's/<title>Swagger UI<\/title>/<title>Akka Cluster Camera API v${{ steps.version.outputs.version }}<\/title>/' api/v${{ steps.version.outputs.major_version }}/rest/index.html
+        # Update only the page title
+        sed -i 's/<title>Swagger UI<\/title>/<title>Camera REST API v${{ steps.version.outputs.version }}<\/title>/' api/v${{ steps.version.outputs.major_version }}/rest/index.html
         
-        # Pulisci
-        rm extract-swagger.js
-        
-        # Crea anche una versione compatibile Swagger 2.0
-        npm install -g api-spec-converter
-        api-spec-converter --from=openapi_3 --to=swagger_2 --syntax=json \
-          api/v${{ steps.version.outputs.major_version }}/rest/openapi.json > \
-          api/v${{ steps.version.outputs.major_version }}/rest/swagger.json
-        
-        # Crea la guida API
-        cat > api/v${{ steps.version.outputs.major_version }}/rest/api-guide.md << EOF
-        ---
-        layout: default
-        title: REST API Guide v${{ steps.version.outputs.major_version }}
-        ---
-        
+        # Create simple guide page
+        cat > api/v${{ steps.version.outputs.major_version }}/rest/README.md << EOF
         # REST API Documentation v${{ steps.version.outputs.major_version }}
         
         **Version:** ${{ steps.version.outputs.version }}  
-        **Generated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        **Standard:** OpenAPI 3.0.3
         
-        ## Interactive Documentation
+        ## Files
         
-        - [**Swagger UI Interface**](./index.html) - Interactive API documentation
-        - [**Download OpenAPI 3.0 Spec**](./openapi.json) - Latest OpenAPI specification  
-        - [**Download Swagger 2.0 Spec**](./swagger.json) - Legacy Swagger specification
+        - [**Interactive UI**](./index.html) - Test the API in your browser
+        - [**OpenAPI YAML**](./openapi.yaml) - Human-readable specification
+        - [**OpenAPI JSON**](./openapi.json) - Machine-readable specification
         
-        ## Quick Links
+        ## Usage
         
-        - 🚀 [**Test API Live**](./index.html) - Try endpoints directly in browser
-        - 📋 [**API Reference**](./index.html#/operations-tag-Camera_Management) - Complete endpoint list
-        - 🔍 [**Status Monitoring**](./index.html#/operations-tag-Monitoring) - System health endpoints
+        1. **Browser testing**: Open [index.html](./index.html)
+        2. **Import to tools**: Use the YAML or JSON files
+        3. **Generate clients**: Use OpenAPI Generator with the spec files
         
-        ## API Overview
+        ## Quick Examples
         
-        The Akka Cluster Camera Management REST API provides HTTP endpoints for:
+        ### Get System Status
+        \`\`\`bash
+        curl http://localhost:4000/status
+        \`\`\`
         
-        - **Camera Management**: Switch between available cameras
-        - **Detection Configuration**: Set detection window coordinates  
-        - **System Monitoring**: Real-time status and detection data
+        ### Switch Camera
+        \`\`\`bash
+        curl -X POST http://localhost:4000/camera/switch \\
+          -H "Content-Type: application/json" \\
+          -d '{"cameraId": "camera1"}'
+        \`\`\`
         
-        ## Base URLs
+        ### Set Detection Window
+        \`\`\`bash
+        curl -X POST http://localhost:4000/window \\
+          -H "Content-Type: application/json" \\
+          -d '{"x": 100, "y": 50, "width": 400, "height": 300}'
+        \`\`\`
         
-        | Environment | URL | Description |
-        |-------------|-----|-------------|
-        | **Development** | http://localhost:4000 | Local development server |
-        | **Node1 (Primary)** | http://worker1:4000 | Production primary node |
-        | **Node2 (Secondary)** | http://worker2:4000 | Production secondary node |
+        ## Servers
         
-        ---
-        
-        *For complete interactive testing, use the [Swagger UI interface](./index.html) above.*
+        - Development: http://localhost:4000
         EOF
         
-        echo "✅ Swagger documentation generated using standard tools"
+        echo "✅ Clean OpenAPI documentation generated"
+        echo ""
+        echo "📁 Generated files:"
+        echo "  🌐 Interactive UI: api/v${{ steps.version.outputs.major_version }}/rest/index.html"
+        echo "  📖 Simple Guide: api/v${{ steps.version.outputs.major_version }}/rest/README.md"
+        echo "  📋 OpenAPI YAML: api/v${{ steps.version.outputs.major_version }}/rest/openapi.yaml"  
+        echo "  📋 OpenAPI JSON: api/v${{ steps.version.outputs.major_version }}/rest/openapi.json"
+        echo ""
+        echo "🎯 Access at: https://brunoesposito2.github.io/DockerSwarmAkka/api/v${{ steps.version.outputs.major_version }}/rest/"
 
     - name: Extract Docker API Documentation
       run: |
