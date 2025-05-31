@@ -7,7 +7,7 @@ RUN apk add --no-cache \
     wget \
     curl \
     docker \
-    docker-cli-compose \
+    docker-compose \
     shadow
 
 # Install Gradle
