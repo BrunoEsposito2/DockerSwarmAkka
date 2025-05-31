@@ -436,7 +436,7 @@ jobs:
         
         4. Esegui lo stack:
         \`\`\`bash
-        docker stack deploy -c docker-compose-${VERSION}.yml akka
+        docker stack deploy -c docker-compose-prod.yml akka
         \`\`\`
         
         ## Immagini Docker
@@ -481,7 +481,7 @@ jobs:
       with:
         tag_name: v${{ steps.version.outputs.new_version }}
         files: |
-          release-artifacts/docker-compose-${{ steps.version.outputs.new_version }}.yml
+          release-artifacts/docker-compose-prod.yml
           release-artifacts/README.md
           release-artifacts/deploy-akka.sh
       env:
