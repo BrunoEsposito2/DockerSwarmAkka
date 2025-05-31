@@ -239,11 +239,6 @@ jobs:
             deploy:
               mode: replicated
               replicas: 1
-              restart_policy:
-                condition: on-failure
-                delay: 1s
-                max_attempts: 3
-                window: 120s
         
           worker2:
             image: brunoesposito2/akka-node2:${VERSION}
@@ -263,11 +258,6 @@ jobs:
             deploy:
               mode: replicated
               replicas: 1
-              restart_policy:
-                condition: on-failure
-                delay: 1s
-                max_attempts: 3
-                window: 120s
         
         volumes:
           worker1-certs:
