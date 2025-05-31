@@ -5,7 +5,7 @@ title: API Documentation
 
 # Akka Cluster Public API Documentation
 
-**Last Updated:** 2025-05-31 14:52:36 UTC
+**Last Updated:** 2025-05-31 15:52:56 UTC
 
 ## 📚 API Versions
 
