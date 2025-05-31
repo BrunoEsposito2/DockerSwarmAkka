@@ -16,7 +16,6 @@ WORKDIR /node1
 
 # Copiare i file
 COPY . /node1
-COPY entrypoint.sh /node1/entrypoint.sh
 
 # Assicurati che l'entrypoint sia eseguibile
 RUN chmod +x /node1/entrypoint.sh

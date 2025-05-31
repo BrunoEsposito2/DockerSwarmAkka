@@ -41,7 +41,7 @@ jobs:
     - name: Build and push Node1 image
       uses: docker/build-push-action@v5
       with:
-        context: .
+        context: ./node1
         file: ./node1/Dockerfile
         push: true
         tags: |
@@ -54,7 +54,7 @@ jobs:
     - name: Build and push Node 2 image
       uses: docker/build-push-action@v5
       with:
-        context: .
+        context: ./node2
         file: ./node2/Dockerfile
         push: true
         tags: |

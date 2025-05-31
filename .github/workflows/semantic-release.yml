@@ -210,19 +210,18 @@ jobs:
             echo "$NOTES" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
         
-    - name: Prepare Production Docker Compose # sostituirlo con qualcosa che va a prendere il docker compose di produzione 
-                                        # e lo modifica aggiornando solo la versione delle immagini da considerare
+    - name: Prepare Production Docker Compose
       run: |
         VERSION=${{ steps.version.outputs.new_version }}
         mkdir -p release-artifacts
         
         # Create a Docker Compose file with the new version
-        cat > release-artifacts/docker-compose-${VERSION}.yml << EOF
+        cat > release-artifacts/docker-compose-prod.yml << EOF
         version: '3.8'
 
         services:
           worker1:
-            image: brunoesposito2/akka-node1:${VERSION}
+            image: brunoesposito2/akka-node1:latest
             ports:
               - "2555:2555"
               - "4000:4000"
@@ -241,7 +240,7 @@ jobs:
               replicas: 1
         
           worker2:
-            image: brunoesposito2/akka-node2:${VERSION}
+            image: brunoesposito2/akka-node2:latest
             ports:
               - "2551:2551"
               - "4001:4000"
