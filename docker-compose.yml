@@ -28,12 +28,13 @@ services:
     # Public API: Required environment variables for cluster deployment
     # These variables must be provided for successful cluster formation
     environment:
-      # Docker Swarm join token - required for swarm node joining
       - JOIN_TOKEN=${JOIN_TOKEN}
-      # Docker Swarm manager IP address - required for swarm communication  
       - MANAGER_IP=${MANAGER_IP}
+      - DOCKER_TLS_CERTDIR=/certs
+      - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
       - worker1-certs:/certs
+      - worker1-data:/var/lib/docker
     # Public API: Cluster overlay network
     # Network name 'swarm-network' is part of deployment interface
     # Changing network name breaks inter-service communication
@@ -57,15 +58,19 @@ services:
     environment:
       - JOIN_TOKEN=${JOIN_TOKEN}
       - MANAGER_IP=${MANAGER_IP}
+      - DOCKER_TLS_CERTDIR=/certs
+      - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
       - worker2-certs:/certs
+      - worker2-data:/var/lib/docker
     networks:
       - swarm-network
 
 volumes:
-  # Internal volumes - not part of public API
   worker1-certs:
+  worker1-data:
   worker2-certs:
+  worker2-data:
 
 # Public API: Docker overlay network for cluster communication
 # Network configuration is part of the deployment interface
