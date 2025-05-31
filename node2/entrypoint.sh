@@ -7,22 +7,36 @@ check_docker() {
 }
 
 # Start the Docker daemon in the background
-echo "Starting Docker deamon..."
-dockerd &
+if ! check_docker; then
+    echo "Starting Docker daemon with DinD configuration..."
+    
+    # Start dockerd with specific flags for containers
+    dockerd \
+        --host=unix:///var/run/docker.sock \
+        --storage-driver=vfs \
+        --iptables=false \
+        --ip-forward=false \
+        --bridge=none \
+        --exec-opt native.cgroupdriver=cgroupfs \
+        --log-level=error \
+        >/dev/null 2>&1 &
 
-# Wait for the Docker daemon to be ready
-echo "Waiting for the initialisation of the Docker daemon..."
-WAIT_SECONDS=0
-while ! check_docker; do
-    sleep 2
-    WAIT_SECONDS=$((WAIT_SECONDS + 2))
-    echo "Waiting for the initialisation of the Docker daemon... ($WAIT_SECONDS seconds)"
+    echo "Waiting for Docker daemon initialization..."
+    WAIT_SECONDS=0
+    while ! check_docker; do
+        sleep 2
+        WAIT_SECONDS=$((WAIT_SECONDS + 2))
+        echo "Waiting for Docker daemon... ($WAIT_SECONDS seconds)"
 
-    if [ $WAIT_SECONDS -ge 60 ]; then
-        echo "Timeout: The Docker daemon has not started within 60 seconds."
-        exit 1
-    fi
-done
+        if [ $WAIT_SECONDS -ge 60 ]; then
+            echo "Timeout: Docker daemon has not started within 60 seconds."
+            echo "Trying alternative approach..."
+            break
+        fi
+    done
+else
+    echo "Docker daemon is already running!"
+fi
 
 echo "The Docker daemon is ready!"
 
