@@ -5,8 +5,8 @@ title: API Documentation v1
 
 # Public API Documentation v1
 
-**Current Version:** 1.0.0  
-**Generated:** 2025-05-31 13:57:09 UTC
+**Current Version:** 1.0.1  
+**Generated:** 2025-05-31 14:17:41 UTC
 
 ## 📨 Message Protocol API
 
@@ -94,4 +94,4 @@ docker logs -f worker2
 
 ---
 
-*This documentation covers the complete API surface for version 1.0.0*
+*This documentation covers the complete API surface for version 1.0.1*

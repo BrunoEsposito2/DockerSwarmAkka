@@ -4,7 +4,7 @@ openapi: 3.0.3
 
 info:
   title: Akka Cluster Camera Management API
-  version: "1.0.0"
+  version: "1.0.1"
   description: |
     REST API for camera management and system monitoring in the Akka cluster system.
     
