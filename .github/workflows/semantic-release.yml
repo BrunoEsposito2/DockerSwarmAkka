@@ -349,8 +349,8 @@ jobs:
         
         # Scarica il docker-compose file
         echo -e "${YELLOW}Scaricamento del file docker-compose...${NC}"
-        COMPOSE_URL="https://github.com/brunoesposito2/DockerSwarmAkka/releases/download/v${VERSION}/docker-compose-${VERSION}.yml"
-        COMPOSE_FILE="docker-compose-${VERSION}.yml"
+        COMPOSE_URL="https://github.com/brunoesposito2/DockerSwarmAkka/releases/download/v${VERSION}/docker-compose-prod.yml"
+        COMPOSE_FILE="docker-compose-prod.yml"
         
         if curl -sSL "$COMPOSE_URL" -o "$COMPOSE_FILE"; then
             echo -e "${GREEN}File docker-compose scaricato con successo.${NC}"
