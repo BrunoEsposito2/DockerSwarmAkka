@@ -6,7 +6,7 @@ title: API Documentation v0
 # Public API Documentation v0
 
 **Current Version:** 0.0.10  
-**Generated:** 2025-05-29 22:04:16 UTC
+**Generated:** 2025-05-31 13:06:07 UTC
 
 ## 📨 Message Protocol API
 

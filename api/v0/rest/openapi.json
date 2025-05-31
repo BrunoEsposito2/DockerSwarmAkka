@@ -1,21 +1,552 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.0.3",
   "info": {
     "title": "Akka Cluster Camera Management API",
     "version": "0.0.10",
-    "description": "REST API for camera management in the Akka cluster system",
+    "description": "REST API for camera management and system monitoring in the Akka cluster system.\n\nThis API provides endpoints for:\n- Switching between available cameras\n- Setting detection window coordinates  \n- Monitoring system status and detection data\n\nThe API runs on port 4000 with CORS enabled for cross-origin requests.\n",
     "contact": {
       "name": "Akka Cluster Project",
       "url": "https://github.com/brunoesposito2/DockerSwarmAkka"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
     }
   },
   "servers": [
     {
       "url": "http://localhost:4000",
       "description": "Development server"
+    },
+    {
+      "url": "http://worker1:4000",
+      "description": "Production Node1 (Primary)"
+    },
+    {
+      "url": "http://worker2:4000",
+      "description": "Production Node2 (Secondary)"
     }
   ],
-  "paths": {},
-  "components": {},
-  "tags": []
+  "tags": [
+    {
+      "name": "Camera Management",
+      "description": "Operations for camera control and switching"
+    },
+    {
+      "name": "Detection",
+      "description": "Window selection and detection configuration"
+    },
+    {
+      "name": "Monitoring",
+      "description": "System status and health monitoring"
+    }
+  ],
+  "paths": {
+    "/camera/switch": {
+      "post": {
+        "tags": [
+          "Camera Management"
+        ],
+        "summary": "Switch Active Camera",
+        "description": "Changes the currently active camera in the cluster system.\n\nThe camera ID should match one of the available cameras in the system.\nValid camera IDs are typically: camera1, camera2, camera3, etc.\n\nAfter switching, the system will begin processing video from the new camera.\n",
+        "operationId": "switchCamera",
+        "requestBody": {
+          "description": "Camera switch request with target camera ID",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CameraSwitchRequest"
+              },
+              "examples": {
+                "switch_to_camera1": {
+                  "summary": "Switch to main entrance",
+                  "value": {
+                    "cameraId": "camera1"
+                  }
+                },
+                "switch_to_camera2": {
+                  "summary": "Switch to parking area",
+                  "value": {
+                    "cameraId": "camera2"
+                  }
+                },
+                "switch_to_camera3": {
+                  "summary": "Switch to living room",
+                  "value": {
+                    "cameraId": "camera3"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Camera switched successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraSwitchResponse"
+                },
+                "examples": {
+                  "success": {
+                    "summary": "Successful camera switch",
+                    "value": {
+                      "cameraId": "camera1"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid camera ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalid_camera": {
+                    "summary": "Invalid camera ID",
+                    "value": {
+                      "error": "Invalid camera ID: camera99"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/window": {
+      "post": {
+        "tags": [
+          "Detection"
+        ],
+        "summary": "Set Detection Window",
+        "description": "Sets the detection window coordinates for camera processing.\n\nThe window defines the area within the camera frame where object detection\nwill be performed. Coordinates are in pixels relative to the video frame.\n\nRequirements:\n- x, y: Top-left corner coordinates (must be >= 0)\n- width, height: Window dimensions (must be > 0)\n\nIf invalid coordinates are provided, the detection window will be reset.\n",
+        "operationId": "setDetectionWindow",
+        "requestBody": {
+          "description": "Window coordinates in pixels",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WindowRequest"
+              },
+              "examples": {
+                "center_window": {
+                  "summary": "Center detection window",
+                  "value": {
+                    "x": 200,
+                    "y": 150,
+                    "width": 400,
+                    "height": 300
+                  }
+                },
+                "full_frame": {
+                  "summary": "Full frame detection",
+                  "value": {
+                    "x": 0,
+                    "y": 0,
+                    "width": 1920,
+                    "height": 1080
+                  }
+                },
+                "small_area": {
+                  "summary": "Small detection area",
+                  "value": {
+                    "x": 100,
+                    "y": 100,
+                    "width": 200,
+                    "height": 200
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Window coordinates set successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WindowResponse"
+                },
+                "examples": {
+                  "approved": {
+                    "summary": "Window coordinates approved",
+                    "value": {
+                      "status": "approved"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid coordinates or dimensions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalid_coordinates": {
+                    "summary": "Invalid coordinates",
+                    "value": {
+                      "error": "Invalid coordinates or dimensions"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status": {
+      "get": {
+        "tags": [
+          "Monitoring"
+        ],
+        "summary": "Get System Status",
+        "description": "Returns current system status including:\n- Service statuses (subscribe, input, config)\n- Current active camera information\n- Available cameras list\n- Real-time detection data (people count, mode, FPS)\n\nThis endpoint can be polled regularly to monitor system health and detection performance.\n",
+        "operationId": "getSystemStatus",
+        "responses": {
+          "200": {
+            "description": "System status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                },
+                "examples": {
+                  "active_system": {
+                    "summary": "System with active detection",
+                    "value": {
+                      "subscribe": "active",
+                      "input": "active",
+                      "config": "active",
+                      "currentCamera": "camera1",
+                      "cameras": [
+                        "camera1",
+                        "camera2",
+                        "camera3"
+                      ],
+                      "peopleCount": 3,
+                      "mode": "Active Detection",
+                      "fps": 30.5
+                    }
+                  },
+                  "initializing": {
+                    "summary": "System initializing",
+                    "value": {
+                      "subscribe": "pending",
+                      "input": "pending",
+                      "config": "active",
+                      "currentCamera": "camera1",
+                      "cameras": [],
+                      "peopleCount": 0,
+                      "mode": "Initializing...",
+                      "fps": 0
+                    }
+                  },
+                  "error_state": {
+                    "summary": "System with errors",
+                    "value": {
+                      "subscribe": "failed",
+                      "input": "active",
+                      "config": "active",
+                      "currentCamera": "camera1",
+                      "cameras": [
+                        "camera1"
+                      ],
+                      "peopleCount": 0,
+                      "mode": "Connection Error",
+                      "fps": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CameraSwitchRequest": {
+        "type": "object",
+        "required": [
+          "cameraId"
+        ],
+        "properties": {
+          "cameraId": {
+            "type": "string",
+            "pattern": "^camera\\d+$",
+            "description": "ID of the camera to switch to",
+            "example": "camera1",
+            "enum": [
+              "camera1",
+              "camera2",
+              "camera3"
+            ]
+          }
+        },
+        "example": {
+          "cameraId": "camera1"
+        }
+      },
+      "CameraSwitchResponse": {
+        "type": "object",
+        "properties": {
+          "cameraId": {
+            "type": "string",
+            "description": "ID of the currently active camera",
+            "example": "camera1"
+          }
+        },
+        "example": {
+          "cameraId": "camera1"
+        }
+      },
+      "WindowRequest": {
+        "type": "object",
+        "required": [
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "properties": {
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3840,
+            "description": "X coordinate of top-left corner",
+            "example": 100
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2160,
+            "description": "Y coordinate of top-left corner",
+            "example": 50
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3840,
+            "description": "Width of the detection window",
+            "example": 200
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2160,
+            "description": "Height of the detection window",
+            "example": 150
+          }
+        },
+        "example": {
+          "x": 200,
+          "y": 150,
+          "width": 400,
+          "height": 300
+        }
+      },
+      "WindowResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected"
+            ],
+            "description": "Status of the operation",
+            "example": "approved"
+          }
+        },
+        "example": {
+          "status": "approved"
+        }
+      },
+      "StatusResponse": {
+        "type": "object",
+        "properties": {
+          "subscribe": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "active",
+              "failed"
+            ],
+            "description": "Subscribe service status",
+            "example": "active"
+          },
+          "input": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "active",
+              "failed"
+            ],
+            "description": "Input service status",
+            "example": "active"
+          },
+          "config": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "active",
+              "failed"
+            ],
+            "description": "Config service status",
+            "example": "active"
+          },
+          "currentCamera": {
+            "type": "string",
+            "description": "Current active camera ID",
+            "example": "camera1"
+          },
+          "cameras": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of available cameras",
+            "example": [
+              "camera1",
+              "camera2",
+              "camera3"
+            ]
+          },
+          "peopleCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of detected people",
+            "example": 3
+          },
+          "mode": {
+            "type": "string",
+            "description": "Current detection mode",
+            "example": "Active Detection",
+            "enum": [
+              "Initializing...",
+              "Active Detection",
+              "Paused",
+              "Connection Error",
+              "Processing Error"
+            ]
+          },
+          "fps": {
+            "type": "number",
+            "format": "float",
+            "minimum": 0,
+            "maximum": 120,
+            "description": "Current frame rate",
+            "example": 30.5
+          }
+        },
+        "example": {
+          "subscribe": "active",
+          "input": "active",
+          "config": "active",
+          "currentCamera": "camera1",
+          "cameras": [
+            "camera1",
+            "camera2"
+          ],
+          "peopleCount": 3,
+          "mode": "Active Detection",
+          "fps": 30.5
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message",
+            "example": "Invalid camera ID"
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code (optional)",
+            "example": "INVALID_CAMERA"
+          },
+          "details": {
+            "type": "object",
+            "description": "Additional error details (optional)",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "example": {
+          "error": "Invalid camera ID",
+          "code": "INVALID_CAMERA"
+        }
+      }
+    },
+    "headers": {
+      "X-RateLimit-Limit": {
+        "description": "Request limit per hour",
+        "schema": {
+          "type": "integer",
+          "example": 1000
+        }
+      },
+      "X-RateLimit-Remaining": {
+        "description": "Remaining requests in current window",
+        "schema": {
+          "type": "integer",
+          "example": 999
+        }
+      }
+    }
+  },
+  "security": [],
+  "externalDocs": {
+    "description": "Find more info about the Akka Cluster project",
+    "url": "https://github.com/brunoesposito2/DockerSwarmAkka"
+  }
 }
