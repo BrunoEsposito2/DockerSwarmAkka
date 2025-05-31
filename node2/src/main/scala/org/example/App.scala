@@ -80,7 +80,7 @@ object App:
           pingRef ! Ping(WorkerOne.pongSelfRef.get)
           Behaviors.same
       }
-    }, "akka-cluster-system", ConfigFactory.load())
+    }, "akka-cluster-system", initBasicConfig)
 
     val cluster = Cluster(system)
 
