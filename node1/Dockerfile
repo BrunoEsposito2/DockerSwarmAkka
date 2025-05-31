@@ -18,10 +18,10 @@ WORKDIR /app
 COPY . /app/
 
 # Make entrypoint executable
-RUN chmod +x /app/node1/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Expose ports
 EXPOSE 2555 4000
 
 # Use the simplified entrypoint
-CMD ["/bin/bash", "/app/node1/simple-entrypoint.sh"]
+CMD ["/bin/bash", "/app/entrypoint.sh"]
