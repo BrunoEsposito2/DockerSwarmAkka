@@ -5,8 +5,8 @@ title: Scala API v1
 
 # Scala API Documentation v1
 
-**Version:** 1.0.6  
-**Generated:** 2025-05-31 15:52:51 UTC
+**Version:** 1.0.7  
+**Generated:** 2025-05-31 15:57:29 UTC
 
 ## Node Documentation
 
