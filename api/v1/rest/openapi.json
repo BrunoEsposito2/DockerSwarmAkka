@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Akka Cluster Camera Management API",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "description": "REST API for camera management and system monitoring in the Akka cluster system.\n\nThis API provides endpoints for:\n- Switching between available cameras\n- Setting detection window coordinates  \n- Monitoring system status and detection data\n\nThe API runs on port 4000 with CORS enabled for cross-origin requests.\n",
     "contact": {
       "name": "Akka Cluster Project",
