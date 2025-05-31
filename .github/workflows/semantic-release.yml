@@ -223,43 +223,61 @@ jobs:
         services:
           worker1:
             image: brunoesposito2/akka-node1:${VERSION}
-            privileged: true
-            container_name: worker1
             ports:
               - "2555:2555"
+              - "4000:4000"
             environment:
-              - JOIN_TOKEN=${JOIN_TOKEN}
-              - MANAGER_IP=${MANAGER_IP}
+              - JOIN_TOKEN=\${JOIN_TOKEN}
+              - MANAGER_IP=\${MANAGER_IP}
+              - DOCKER_TLS_CERTDIR=/certs
+              - DOCKER_HOST=unix:///var/run/docker.sock
             volumes:
+              - worker1-data:/var/lib/docker
               - worker1-certs:/certs
             networks:
               - swarm-network
-            restart: always
             deploy:
               mode: replicated
               replicas: 1
+              restart_policy:
+                condition: on-failure
+                delay: 1s
+                max_attempts: 3
+                window: 120s
         
           worker2:
             image: brunoesposito2/akka-node2:${VERSION}
-            privileged: true
-            container_name: worker2
             ports:
               - "2551:2551"
+              - "4001:4000"
             environment:
               - JOIN_TOKEN=${JOIN_TOKEN}
               - MANAGER_IP=${MANAGER_IP}
+              - DOCKER_TLS_CERTDIR=/certs
+              - DOCKER_HOST=unix:///var/run/docker.sock
             volumes:
               - worker2-certs:/certs
+              - worker2-data:/var/lib/docker
             networks:
               - swarm-network
-            restart: always
             deploy:
               mode: replicated
               replicas: 1
+              restart_policy:
+                condition: on-failure
+                delay: 1s
+                max_attempts: 3
+                window: 120s
         
         volumes:
           worker1-certs:
+            driver: local
+          worker1-data:
+            driver: local
           worker2-certs:
+            driver: local
+          worker2-data:
+            driver: local
         
         networks:
           swarm-network:
