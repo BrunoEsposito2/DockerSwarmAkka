@@ -1,6 +1,6 @@
 # REST API Documentation v1
 
-**Version:** 1.0.3  
+**Version:** 1.0.4  
 **Standard:** OpenAPI 3.0.3
 
 ## Files
